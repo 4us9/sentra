@@ -1,6 +1,6 @@
 export type { Store, StoreHealth, ApiKeyRecord } from './store.js';
 export { createMemoryStore, readStateFile, emptyState, View, type FullState } from './memory.js';
-export { createPostgresStore } from './postgres.js';
+export { createPostgresStore, readPostgresLedger } from './postgres.js';
 import path from 'node:path';
 import type { Store } from './store.js';
 import { createMemoryStore } from './memory.js';

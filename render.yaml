@@ -5,8 +5,8 @@ services:
     name: sentra
     runtime: node
     plan: free
-    buildCommand: npm ci --omit=dev
-    startCommand: npm start
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION

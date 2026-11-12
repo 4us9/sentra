@@ -10,7 +10,7 @@
 //   curl -s -X POST localhost:3000/api/mandates -H 'Content-Type: application/json' \\
 //        -d '{"policy":"grocery-run","processor":"external"}'      # prints the agent token
 //   SENTRA_AGENT_TOKEN=sat_... node examples/protect-existing-tool.js
-import { Sentra, PaymentRefused } from '../sdk/index.js';
+import { Sentra, PaymentRefused } from '@sentra/sdk';
 
 const sentra = new Sentra({
   url: process.env.SENTRA_URL || 'http://localhost:3000',

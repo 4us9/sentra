@@ -1,5 +1,5 @@
 // The demo agent's playbook: what a healthy shopping agent does, and what it does
-// after it has been hijacked. Shared by the CLI agent (npm run demo) and the
+// after it has been hijacked. Shared by the CLI agent (pnpm demo) and the
 // dashboard's Attack Lab, so judges can fire each one themselves.
 
 // The poisoned product listing that hijacks the agent. Hidden text in a page the

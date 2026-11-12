@@ -37,13 +37,13 @@ Fix or soften the wording if the sources say otherwise.
 ## 5. Optional: a Stripe test key
 The Stripe processor is written but has only run simulated. To run it for real:
 dashboard.stripe.com → Developers → API keys (Test mode) → copy the `sk_test_...`
-secret into `.env` as `STRIPE_SECRET_KEY`, restart, `npm run demo`. If the Stripe
+secret into `.env` as `STRIPE_SECRET_KEY`, restart, `pnpm demo`. If the Stripe
 ALLOW lines come back `ERROR`, tell Claude what the reason says. A live key is
 refused at startup.
 
 ## 6. Housekeeping
 - The Anthropic key is the only thing here that costs money. Each payment that
   passes the deterministic layers is one short Haiku call, capped at
-  `SENTRA_LLM_HOURLY_CAP` per hour. A full `npm run demo` is about 20 calls.
+  `SENTRA_LLM_HOURLY_CAP` per hour. A full `pnpm demo` is about 20 calls.
 - `.env.example` was deleted from the working tree at some point (probably `mv`
   instead of `cp`). It has been recreated. Use `cp .env.example .env` next time.

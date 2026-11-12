@@ -27,10 +27,11 @@ unverified in STATUS.md.
    Deterministic layers run first; the model is not consulted once one has blocked.
    Signature hits are final.
 3. Reserve → execute → commit/release, per mandate. Budget, velocity and drain are
-   evaluated against spent + reserved, under `withLock` in src/guard.js. The lock
+   evaluated against spent + reserved, under `withLock` in `packages/service/src/guard.ts`. The lock
    is held only for synchronous work; never across a model or processor call.
-4. The policy engine (src/policy/, src/intent.js, src/signatures.js) must not
-   import or branch on a processor. Processors live in src/processors/ behind the
+4. The policy engine (`packages/guard/src/policy/`, `packages/guard/src/intent.ts`,
+   `packages/guard/src/signatures.ts`) must not import or branch on a processor.
+   Processors live in `packages/service/src/processors/` behind the
    PaymentProcessor contract and are the only code that touches credentials.
 5. Sandbox / test mode only. PayPal base URL must be the sandbox; Stripe keys must
    be `sk_test_`. Both are refused at load otherwise.
@@ -42,13 +43,13 @@ unverified in STATUS.md.
 9. Agent-supplied strings never reach `innerHTML`; the CSP stays strict (no inline
    script); CSV cells are formula-safe; logs carry a fingerprint of the purpose,
    never the text, and never a credential.
-10. Nothing in test/corpus/attacks.mjs may ever return ALLOW. If a new payload gets
+10. Nothing in `packages/guard/test/corpus/attacks.ts` may ever return ALLOW. If a new payload gets
     through, add it to the corpus and fix the firewall, not the test.
 
 ## 2. ARCHITECTURE
 ```
 agent ─▶ POST /guard (bearer = mandate-scoped token; rate limited per token)
-         guard.js   lock: idempotency → screen (schema, rules, anomaly) → RESERVE
+         packages/service/src/guard.ts   lock: idempotency → screen (schema, rules, anomaly) → RESERVE
                     no lock: intent (signatures, then Claude or fallback)
                     lock: still usable? (seal, kill switch)
                     no lock: processor.createPayment (idempotent on decision id)
@@ -56,16 +57,17 @@ agent ─▶ POST /guard (bearer = mandate-scoped token; rate limited per token)
          ALLOW → processor · BLOCK → refused · REVIEW → human · ERROR → nothing debited
          circuit breaker: N blocks in a window freezes the mandate
 operator ─▶ /api/* (issue mandate from a policy file, freeze/reinstate, review, ledger, metrics)
-agents   ─▶ sdk/ (HTTP client + types) · mcp/sentra-mcp.js (pay, mandate) · raw HTTP
+agents   ─▶ @sentra/sdk · @sentra/mcp · raw HTTP
 ```
 File map is at the bottom of README.md.
 
 ## 3. HOW TO WORK THIS REPO
-- Keep the tree green. Before every commit: `npm test` (unit, guard, HTTP,
-  adversarial; offline; never reads .env) and `npm run typecheck`. CI runs both.
+- Keep the tree green. Before every commit: `corepack pnpm@9.15.0 test` (unit,
+  guard, HTTP, adversarial; offline; never reads .env) and `corepack pnpm@9.15.0 typecheck`.
+  CI runs build, type checking and tests on Node 20/22/24 with Postgres.
 - After any change to the decision path also run the end-to-end demo
-  (`npm start`, then `npm run demo`) and confirm each scenario in
-  agent/scenarios.js still gives its `expect`, and that verdicts are identical
+  (`pnpm start`, then `pnpm demo`) and confirm each scenario in
+  `packages/service/src/agent/scenarios.ts` still gives its `expect`, and that verdicts are identical
   across rails.
 - Commit small and often with clear messages; push as you go. After each
   milestone that leaves a demo-ready state, tag it `submission-candidate-vN`.

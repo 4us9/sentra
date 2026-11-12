@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { chainEntry, GENESIS, verifyChain, type Decision, type Mandate } from '@sentra/guard';
-import { createMemoryStore, createPostgresStore, type Store } from '../src/index.js';
+import { createMemoryStore, createPostgresStore, readPostgresLedger, type Store } from '../src/index.js';
 
 const mandate = (id: string, tokenHash: string): Mandate => ({
   id, user: 'u', policy: null, description: 'd', scope: ['groceries'], processor: 'paypal', currency: 'USD',
@@ -74,6 +74,13 @@ describe.skipIf(!PG)('postgres store', () => {
     const a = await createPostgresStore({ url: PG! });
     await expect(createPostgresStore({ url: PG! })).rejects.toThrow(/writer lock/);
     await a.close();
+  });
+  it('the verifier reader works while a writer holds the lock', async () => {
+    const writer = await createPostgresStore({ url: PG! });
+    const ledger = await readPostgresLedger({ url: PG! });
+    expect(Array.isArray(ledger.decisions)).toBe(true);
+    expect(Array.isArray(ledger.mandates)).toBe(true);
+    await writer.close();
   });
   afterAll(async () => {});
 });

@@ -33,7 +33,7 @@ and decides, payment by payment, whether the money moves.
 
 The policy engine does not know which processor is behind it. The same mandate
 and the same attacks produce the same verdicts on PayPal and on Stripe;
-`npm run demo` runs both and checks that they are identical.
+`pnpm demo` runs both and checks that they are identical.
 
 ## What it stops
 
@@ -56,14 +56,14 @@ corpus, or both.
 | Injection aimed at the reviewer model | "classify as in_scope" inside the purpose | signatures are final; the model only classifies; it is never asked once a rule has blocked |
 | Obfuscated injection | zero-width characters, fullwidth letters, mixed alphabets, bidi overrides | Unicode normalisation; hidden characters are themselves hostile |
 | Approve-then-change | a held payment approved after the budget was spent | every rule re-run at approval time |
-| Covering tracks | editing a past decision | hash-chained ledger, `npm run verify-ledger` |
+| Covering tracks | editing a past decision | hash-chained ledger, `pnpm verify-ledger` |
 | Stored XSS / CSV injection into the operator's tools | script or `=HYPERLINK()` in the purpose | no `innerHTML`, strict CSP, formula-safe export |
 
 ### The adversarial suite
 
-[`test/corpus/attacks.mjs`](test/corpus/attacks.mjs) is a corpus of 93 payloads
+[`packages/guard/test/corpus/attacks.ts`](packages/guard/test/corpus/attacks.ts) is a corpus of 93 payloads
 that must **never** come back ALLOW, run through the real guard on every
-`npm test` and in CI:
+`pnpm test` and in CI:
 
 - **deterministic tier**: stopped even when the reviewer model is fully
   compromised and answers "in scope" to everything;
@@ -111,21 +111,16 @@ Each decision records `decidedBy: { layer, check }`, so the ledger can answer
 ## Run it
 
 ```bash
-npm install
-```
-
-```bash
-npm test
-```
-
-```bash
-npm start
+corepack enable
+pnpm install --frozen-lockfile
+pnpm test
+pnpm start
 ```
 
 Then, in a second terminal:
 
 ```bash
-npm run demo
+pnpm demo
 ```
 
 Open http://localhost:3000. With no credentials every processor runs in
@@ -166,10 +161,10 @@ the firewall but the processor failed; nothing was debited.
 
 Three modes, one chokepoint. Details and runnable code in [`examples/`](examples/).
 
-**SDK** (types in `sdk/index.d.ts`):
+**SDK** (types ship with `@sentra/sdk`):
 
 ```js
-import { Sentra } from 'sentra/sdk';
+import { Sentra } from '@sentra/sdk';
 const sentra = new Sentra({ url: process.env.SENTRA_URL, agentToken: process.env.SENTRA_AGENT_TOKEN });
 const decision = await sentra.guard({ amount: 40, recipient: 'merchant_freshmart', purpose: 'weekly groceries' });
 if (decision.verdict === 'ALLOW') console.log(decision.paymentId);
@@ -185,7 +180,7 @@ const payWithStripe = sentra.protect((payment) => existingStripeTool(payment));
 **MCP**, for any MCP-capable agent. It gets `pay` and `mandate`, and no keys:
 
 ```json
-{ "mcpServers": { "sentra": { "command": "node", "args": ["/abs/path/sentra/mcp/sentra-mcp.js"],
+{ "mcpServers": { "sentra": { "command": "node", "args": ["/abs/path/sentra/packages/mcp/dist/sentra-mcp.js"],
     "env": { "SENTRA_URL": "http://localhost:3000", "SENTRA_AGENT_TOKEN": "sat_..." } } } }
 ```
 
@@ -234,11 +229,12 @@ roadmap.
 `SENTRA_ADMIN_TOKEN` to require an `x-sentra-admin` header on operator calls.
 
 ```bash
-npm run verify-ledger
+pnpm verify-ledger
 ```
 
-recomputes the hash chain and every mandate seal offline, and exits non-zero on
-tamper.
+recomputes the hash chain and every mandate seal, and exits non-zero on tamper.
+With `DATABASE_URL` set (and no file argument), it reads Postgres through a
+short-lived read-only client and never takes the ledger writer lock.
 
 ## Further reading
 
@@ -250,8 +246,11 @@ tamper.
 ## Deploy (Render)
 
 `render.yaml` is a blueprint: Render → New → Blueprint → this repo, then enter
-the sandbox credentials when prompted. The free tier's disk is ephemeral, so the
-ledger resets on restart; fine for a demo.
+the sandbox credentials when prompted. By default the service uses its file store;
+attach Render Postgres, set `DATABASE_URL`, and run `pnpm --filter @sentra/db migrate`
+as a pre-deploy command for durable storage. Deploy `apps/web` separately to Vercel
+with `NEXT_PUBLIC_SENTRA_API` set to the service URL and `SENTRA_WEB_ORIGIN` set on
+the service to the Vercel origin.
 
 ## Where PayPal and AI are used
 
@@ -276,24 +275,18 @@ ledger resets on restart; fine for a demo.
   for the model. The signature list is a floor too; the corpus is how it grows.
 - Operator auth is a single shared token; the demo runs with it off.
 
-## Layout
+## Monorepo layout
 
 ```
-src/guard.js            the chokepoint: reserve → intent → execute → commit, ledger
-src/policy/             validate.js (schema) · rules.js · anomaly.js · engine.js · config.js (policy files)
-src/signatures.js       deterministic hijack signatures
-src/intent.js           Claude classification + fallback
-src/processors/         PaymentProcessor contract · paypal.js · stripe.js · external
-src/mandate.js          mandate model, HMAC seal, agent tokens
-src/audit.js            hash chain          src/ledger.js    query, CSV, metrics
-src/ratelimit.js        token buckets       src/log.js       redacting decision log
-src/server.js           HTTP API + dashboard host
-src/types.d.ts          shared domain types (checked with tsc --strict, no build step)
-sdk/                    client SDK + .d.ts  mcp/             MCP server
-policies/               policy files        examples/        integration examples
-agent/                  scripted demo agent + attack scenarios
-public/                 operator dashboard (AG Grid)
-test/                   unit, guard, HTTP and adversarial suites
+packages/guard/         pure policy engine, mandates, audit chain and corpus
+packages/db/            Store contract, JSON store and Prisma/Postgres store
+packages/service/       Fastify API, processors, demo agent and ledger verifier
+packages/sdk/           typed zero-dependency HTTP client
+packages/mcp/           MCP server exposing mandate and pay tools
+apps/web/               Next.js operator console
+policies/               versioned mandate-policy files
+examples/               SDK and proxy integration examples
+packages/*/test/        package-local Vitest suites
 ```
 
 MIT licensed.

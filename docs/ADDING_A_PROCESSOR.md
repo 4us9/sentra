@@ -5,8 +5,8 @@ adapter and registering it; no rule, test corpus or dashboard code changes.
 
 ## 1. Write the adapter
 
-`src/processors/<name>.js`, exporting an object that satisfies `PaymentProcessor`
-(typedef in `src/processors/index.js`):
+`packages/service/src/processors/<name>.ts`, exporting an object that satisfies
+`PaymentProcessor` (defined in `packages/service/src/processors/types.ts`):
 
 ```js
 /** @type {import('./index.js').PaymentProcessor} */
@@ -45,7 +45,7 @@ adapter is not called and a `SIM-<NAME>-…` result is returned.
 ## 3. Register it
 
 ```js
-// src/processors/index.js
+// packages/service/src/processors/index.ts
 import { acme } from './acme.js';
 const REGISTRY = { paypal, stripe, external, acme };
 ```
@@ -56,15 +56,15 @@ variables to `.env.example` and `render.yaml`.
 ## 4. Check it
 
 ```bash
-npm test
+pnpm test
 ```
 
 ```bash
-npm run typecheck
+pnpm typecheck
 ```
 
 ```bash
-DEMO_PROCESSORS=paypal,acme npm run demo
+DEMO_PROCESSORS=paypal,acme pnpm demo
 ```
 
 The demo prints whether verdicts are identical across the rails. They must be:

@@ -28,7 +28,7 @@ const decision = await sentra.guard({ amount: 40, recipient: 'merchant_freshmart
 if (decision.verdict === 'ALLOW') console.log(decision.paymentId);
 ```
 
-Types ship in `sdk/index.d.ts`. Runnable version: [quickstart.js](quickstart.js).
+Types ship with `@sentra/sdk`. Runnable version: [quickstart.js](quickstart.js).
 
 `guard()` resolves for every verdict. `guardOrThrow()` rejects with
 `PaymentRefused` (carrying the full decision) unless the verdict is `ALLOW`.
@@ -65,7 +65,7 @@ The agent gets two tools, `pay` and `mandate`, and no processor credentials at a
   "mcpServers": {
     "sentra": {
       "command": "node",
-      "args": ["/absolute/path/to/sentra/mcp/sentra-mcp.js"],
+      "args": ["/absolute/path/to/sentra/packages/mcp/dist/sentra-mcp.js"],
       "env": {
         "SENTRA_URL": "http://localhost:3000",
         "SENTRA_AGENT_TOKEN": "sat_..."
@@ -82,7 +82,7 @@ should be able to use both.
 Claude Code:
 
 ```bash
-claude mcp add sentra --env SENTRA_URL=http://localhost:3000 --env SENTRA_AGENT_TOKEN=sat_... -- node /absolute/path/to/sentra/mcp/sentra-mcp.js
+claude mcp add sentra --env SENTRA_URL=http://localhost:3000 --env SENTRA_AGENT_TOKEN=sat_... -- node /absolute/path/to/sentra/packages/mcp/dist/sentra-mcp.js
 ```
 
 ## What the agent should do with a verdict

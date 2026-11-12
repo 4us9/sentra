@@ -69,7 +69,7 @@ if (decision.verdict === 'ALLOW') console.log(decision.paymentId);`}</CodeBlock>
         <P>Any MCP-capable agent gets <C>pay</C> and <C>mandate</C>, and no keys.</P>
         <CodeBlock title="mcp config">{`{ "mcpServers": { "sentra": {
     "command": "node",
-    "args": ["/abs/path/sentra/mcp/sentra-mcp.js"],
+    "args": ["/abs/path/sentra/packages/mcp/dist/sentra-mcp.js"],
     "env": { "SENTRA_URL": "http://localhost:4000", "SENTRA_AGENT_TOKEN": "sat_..." }
 } } }`}</CodeBlock>
 

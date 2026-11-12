@@ -50,19 +50,19 @@ as *compromisable*, because its input contains attacker-controlled text.
 
 ### T1. Spend beyond the mandate
 Over the cap, over budget, to an unlisted recipient, in another currency, after
-expiry. → Hard rules in integer cents (`src/policy/rules.js`). Tests: `rules: *`.
+expiry. → Hard rules in integer cents (`packages/guard/src/policy/rules.ts`). Tests: `rules: *`.
 
 ### T2. Malformed input used as an exploit
 Negative or fractional-cent amounts, `NaN`, exponent strings, operator objects,
 arrays, look-alike or control characters in ids, oversized bodies. → Strict
-schema layer before anything else runs (`src/policy/validate.js`); 10 kB body
+schema layer before anything else runs (`packages/guard/src/policy/validate.ts`); 10 kB body
 limit. Tests: `schema: *`, adversarial `amount`, `recipient`, `currency`,
 `structure` families.
 
 ### T3. Race the budget check
 Fire payments concurrently so each reads the same remaining budget. → Budget,
 velocity and drain are evaluated against spent **plus in-flight reservations**
-under a per-mandate lock (`src/guard.js`). Tests: `reservation: *`,
+under a per-mandate lock (`packages/service/src/guard.ts`). Tests: `reservation: *`,
 `guard: double-spend race`.
 
 ### T4. Retry into a double charge
@@ -74,7 +74,7 @@ processor-side idempotency key. Tests: `idempotency: *`.
 ### T5. A payment that passes every number and is still wrong
 Gift cards and other cash-outs through an allowed merchant; off-purpose
 purchases. → Intent layer: deterministic signatures, then model classification
-or a vocabulary fallback (`src/signatures.js`, `src/intent.js`). Tests:
+or a vocabulary fallback (`packages/guard/src/signatures.ts`, `packages/service/src/llm.ts`). Tests:
 `intent: *`, adversarial `cash-out` family.
 
 ### T6. Attack the reviewer model
@@ -93,12 +93,12 @@ approves everything.
 ### T7. Widen, reroute or swap the mandate
 Edit stored limits, change the processor, or present another mandate's id. → Every
 policy field including the processor is covered by an HMAC seal checked on every
-payment (`src/mandate.js`); the token identifies the mandate, so a request cannot
+payment (`packages/guard/src/mandate.ts`); the token identifies the mandate, so a request cannot
 name one. Tests: `rules: mandate edited after issue`, `guard: an agent token only
 ever reaches its own mandate`, `processors: … the choice is sealed`.
 
 ### T8. Steal credentials from the agent
-→ The agent has none. Only `src/processors/*` reads processor keys. The agent
+→ The agent has none. Only `packages/service/src/processors/*` reads processor keys. The agent
 token is stored only as a SHA-256 hash and never appears in API output, the
 ledger or logs. Tests: `http: the dashboard API never exposes token hashes or
 seals`, `store: … the agent token itself must never be persisted`.
@@ -117,7 +117,7 @@ approvals`.
 
 ### T11. Rewrite history
 Edit or delete ledger entries, or edit a mandate, in the data store. → Hash-chained
-ledger and sealed mandates; `GET /api/audit/verify`, `npm run verify-ledger`, and
+ledger and sealed mandates; `GET /api/audit/verify`, `pnpm verify-ledger`, and
 the `sentra_ledger_intact` metric. Tests: `audit: *`, `verify-ledger: *`.
 This is detection. An attacker who also has the seal secret can forge both.
 
@@ -149,7 +149,7 @@ Stated plainly, because a firewall that overstates itself is worse than none.
 - **Semantic evasion without a model.** With no model configured, the intent layer
   is signatures plus a keyword vocabulary. A novel euphemism for a cash-out, on an
   allowed merchant, under every limit, lands in REVIEW at best. The corpus
-  (`test/corpus/attacks.mjs`) is how that floor is raised.
+  (`packages/guard/test/corpus/attacks.ts`) is how that floor is raised.
 - **Multi-instance deployments.** Locks, reservations and rate limits are
   in-process. Running two instances against one store would reopen T3 and T4.
 - **Availability.** A compromised agent can freeze its own mandate. That is the

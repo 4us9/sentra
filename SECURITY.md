@@ -11,7 +11,7 @@ private vulnerability reporting on this repository instead of a public issue.
 
 A good report is a payload. If you have a request that comes back `ALLOW` and
 should not, the most useful form is a new entry for
-[`test/corpus/attacks.mjs`](test/corpus/attacks.mjs): it becomes a permanent
+[`packages/guard/test/corpus/attacks.ts`](packages/guard/test/corpus/attacks.ts): it becomes a permanent
 regression test once fixed.
 
 ## What counts
@@ -32,5 +32,5 @@ not bound to payee accounts, semantic evasion with no model configured).
   mandates and approve held payments.
 - Keep `SENTRA_LLM_HOURLY_CAP` set if a model key is configured.
 - Run one instance per data store.
-- Run `npm run verify-ledger` against backups; alert on the
+- Run `pnpm verify-ledger` against backups; alert on the
   `sentra_ledger_intact` metric.

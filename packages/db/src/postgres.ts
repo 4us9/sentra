@@ -92,6 +92,13 @@ function singleConnection(url: string): string {
   return u.toString();
 }
 
+/** A verifier is incapable of writing even if its implementation regresses. */
+function readOnlyConnection(url: string): string {
+  const u = new URL(url);
+  u.searchParams.set('options', '-c default_transaction_read_only=on');
+  return u.toString();
+}
+
 export async function createPostgresStore(opts: { url: string }): Promise<Store> {
   const db = new PrismaClient({ datasources: { db: { url: singleConnection(opts.url) } } });
   await db.$connect();
@@ -166,4 +173,26 @@ export async function createPostgresStore(opts: { url: string }): Promise<Store>
       await db.$disconnect();
     },
   });
+}
+
+/**
+ * Read the ledger without opening the writer store or taking its advisory lock.
+ * This is deliberately separate from `createPostgresStore`: integrity checks may
+ * run against a live service and must never contend with payment processing.
+ */
+export async function readPostgresLedger(opts: { url: string }): Promise<{ decisions: Decision[]; mandates: Mandate[] }> {
+  const db = new PrismaClient({ datasources: { db: { url: readOnlyConnection(opts.url) } } });
+  try {
+    await db.$connect();
+    const [mandates, decisions] = await Promise.all([
+      db.mandate.findMany({ orderBy: { id: 'asc' }, select: { doc: true } }),
+      db.decision.findMany({ orderBy: { seq: 'asc' }, select: { doc: true } }),
+    ]);
+    return {
+      mandates: mandates.map((m) => JSON.parse(m.doc) as Mandate),
+      decisions: decisions.map((d) => JSON.parse(d.doc) as Decision),
+    };
+  } finally {
+    await db.$disconnect();
+  }
 }

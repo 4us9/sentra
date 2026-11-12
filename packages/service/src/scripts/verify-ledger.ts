@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// npm run verify-ledger [path/to/db.json]
+// pnpm verify-ledger [path/to/db.json]
 //
 // Offline integrity check, independent of the running server:
 //   1. recomputes the audit hash chain over every decision
@@ -10,20 +10,36 @@ import '../env.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { verifyChain, configureGuard, sealValid, type Decision, type Mandate } from '@sentra/guard';
+import { readPostgresLedger } from '@sentra/db';
 import { repoRoot } from '../env.js';
 import { loadSecret } from '../server.js';
 
-const file = path.resolve(process.argv[2] || path.join(repoRoot(), process.env.SENTRA_DATA_DIR || 'data', 'db.json'));
+const arg = process.argv[2];
+const file = path.resolve(arg || path.join(repoRoot(), process.env.SENTRA_DATA_DIR || 'data', 'db.json'));
 // Seals are keyed by the secret that sits next to the ledger (or SENTRA_SECRET).
 const secret = loadSecret(path.dirname(file));
 configureGuard({ secret: () => secret });
 
-let db: { decisions?: Decision[]; mandates?: Record<string, Mandate> };
-try { db = JSON.parse(fs.readFileSync(file, 'utf8')); }
-catch (e) { console.error(`verify-ledger: cannot read ${file}: ${(e as Error).message}`); process.exit(2); }
-
-const decisions = db.decisions || [];
-const mandates = Object.values(db.mandates || {});
+let decisions: Decision[];
+let mandates: Mandate[];
+let source: string;
+try {
+  if (!arg && process.env.DATABASE_URL) {
+    // This uses a short-lived, read-only Prisma client. It does not take the
+    // service's advisory writer lock, so it is safe while the service is live.
+    ({ decisions, mandates } = await readPostgresLedger({ url: process.env.DATABASE_URL }));
+    source = 'Postgres';
+  } else {
+    const db = JSON.parse(fs.readFileSync(file, 'utf8')) as { decisions?: Decision[]; mandates?: Record<string, Mandate> };
+    decisions = db.decisions || [];
+    mandates = Object.values(db.mandates || {});
+    source = file;
+  }
+} catch (e) {
+  const target = !arg && process.env.DATABASE_URL ? 'Postgres' : file;
+  console.error(`verify-ledger: cannot read ${target}: ${(e as Error).message}`);
+  process.exit(2);
+}
 const chain = verifyChain(decisions);
 let bad = 0;
 
@@ -39,5 +55,5 @@ for (const m of mandates) {
   else { bad++; console.log(`mandate  TAMPERED ${m.id}: policy fields do not match the seal`); }
 }
 
-console.log(bad ? `\nFAILED: ${bad} integrity problem(s) in ${file}` : `\nOK: ${file} verifies`);
+console.log(bad ? `\nFAILED: ${bad} integrity problem(s) in ${source}` : `\nOK: ${source} verifies`);
 process.exit(bad ? 1 : 0);

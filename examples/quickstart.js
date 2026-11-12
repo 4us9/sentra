@@ -1,11 +1,11 @@
 // Runnable end to end against a local Sentra:
 //
-//   npm start                      (terminal 1)
-//   node examples/quickstart.js    (terminal 2)
+//   corepack pnpm@9.15.0 start          (terminal 1)
+//   node examples/quickstart.js         (terminal 2)
 //
 // Step 1 is the human (operator) side: issue a mandate from a policy file.
 // Step 2 is all an agent ever needs: three lines.
-import { Sentra } from '../sdk/index.js';
+import { Sentra } from '@sentra/sdk';
 
 const url = process.env.SENTRA_URL || 'http://localhost:3000';
 

@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0 — 2026-11-12
+
+TypeScript monorepo release.
+
+- **Packages.** The pure guard engine, storage adapters, Fastify service, SDK and
+  MCP server now live in independently type-checked workspace packages. The
+  operator console is a Next.js app in `apps/web`.
+- **Storage.** Added the `Store` contract, JSON/file and Prisma/Postgres
+  implementations, ordered Postgres writes and an advisory single-writer lock.
+  The verifier reads Postgres through a separate read-only path, so it does not
+  contend with the service writer.
+- **Service.** Fastify replaces the legacy server, with CORS, storage health and
+  scoped, revocable operator API keys.
+- **Delivery.** CI runs build, typecheck and tests on Node 20/22/24 with
+  Postgres. Render builds through pnpm; a service Dockerfile is included.
+
+Breaking: use pnpm workspaces and package imports (`@sentra/sdk`, `@sentra/mcp`)
+instead of the removed root `sdk/` and `mcp/` trees.
+
 ## 0.3.0 — 2026-11-12 (`submission-candidate-v2`)
 
 Processor-agnostic core and the developer surface.
