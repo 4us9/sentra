@@ -1,6 +1,6 @@
 # Sentra
 
-[![ci](https://github.com/4us9/sentra/actions/workflows/ci.yml/badge.svg)](https://github.com/4us9/sentra/actions/workflows/ci.yml)
+[![ci](https://github.com/4us9/sentra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/4us9/sentra/actions/workflows/ci.yml?query=branch%3Amain)
 
 **The firewall between AI agents and the money.** Every payment an agent attempts
 is inspected before it executes. Good payments go through to PayPal or Stripe.
