@@ -97,6 +97,8 @@ Design rules that matter:
   they cannot oversubscribe a budget, and a slow model never stalls other agents.
 - **Verify after executing.** Each processor reads back what it recorded and
   refuses a mismatch in amount or currency.
+- **Operator actions are on the ledger too.** Issuing a mandate, freezing,
+  reinstating, approving and denying are entries in the same hash chain.
 - **Circuit breaker and kill switch.** Five blocked payments in two minutes
   freezes the mandate, and a human can freeze it at any time. A freeze also
   stops payments that are already in flight.
@@ -222,7 +224,7 @@ roadmap.
 | `POST /api/mandates` | Operator. `{policy?, processor?}` → mandate + agent token (shown once) |
 | `POST /api/mandates/:id/freeze` · `/reinstate` | Operator. Kill switch |
 | `POST /api/reviews/:id/approve` · `/deny` | Operator. Resolve a held payment |
-| `GET /api/ledger` | Query: `verdict`, `layer`, `check`, `processor`, `mandate`, `since`, `until`, `q`, `limit`, `offset`; `format=csv` to export |
+| `GET /api/ledger` | Query: `verdict`, `kind`, `layer`, `check`, `processor`, `mandate`, `since`, `until`, `q`, `limit`, `offset`; `format=csv` to export |
 | `GET /api/metrics` · `GET /metrics` | JSON and Prometheus: block rate, spend by processor, stopped-by-layer, p50/p95 latency, ledger integrity |
 | `GET /api/state` · `/api/policies` · `/api/audit/verify` | Dashboard state, loaded policies, chain check |
 
@@ -235,6 +237,13 @@ npm run verify-ledger
 
 recomputes the hash chain and every mandate seal offline, and exits non-zero on
 tamper.
+
+## Further reading
+
+- [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md): assets, attacker, trust boundaries, thirteen threats each tied to code and tests, and what is out of scope.
+- [docs/ADDING_A_PROCESSOR.md](docs/ADDING_A_PROCESSOR.md): the adapter contract for a new rail.
+- [examples/](examples/): SDK, proxy and MCP integration.
+- [STATUS.md](STATUS.md): exactly what has been verified live, by tests, by hand, and what has not.
 
 ## Deploy (Render)
 
