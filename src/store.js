@@ -27,16 +27,48 @@ function persist() {
 
 const clone = (x) => (x === undefined ? undefined : structuredClone(x));
 
-export function saveMandate(m) { state.mandates[m.id] = clone(m); persist(); return m; }
+// Indexes, rebuilt from state whenever it is replaced. They keep the hot path
+// (one /guard call) from scanning every mandate and every decision ever made.
+let byToken = new Map();        // tokenHash -> mandateId
+let byMandate = new Map();      // mandateId -> decisions[] (same objects as state.decisions)
+function reindex() {
+  byToken = new Map(Object.values(state.mandates).map((m) => [m.tokenHash, m.id]));
+  byMandate = new Map();
+  for (const d of state.decisions) {
+    if (!byMandate.has(d.mandateId)) byMandate.set(d.mandateId, []);
+    byMandate.get(d.mandateId).push(d);
+  }
+}
+reindex();
+
+export function saveMandate(m) {
+  state.mandates[m.id] = clone(m);
+  byToken.set(m.tokenHash, m.id);
+  persist();
+  return m;
+}
 export function getMandate(id) { return clone(state.mandates[id]); }
+export function mandateByTokenHash(hash) {
+  const id = byToken.get(hash);
+  return id ? clone(state.mandates[id]) ?? null : null;
+}
 export function listMandates() { return clone(Object.values(state.mandates)); }
-export function appendDecision(d) { state.decisions.push(clone(d)); persist(); return d; }
+export function appendDecision(d) {
+  const copy = clone(d);
+  state.decisions.push(copy);
+  if (!byMandate.has(copy.mandateId)) byMandate.set(copy.mandateId, []);
+  byMandate.get(copy.mandateId).push(copy);
+  persist();
+  return d;
+}
 export function listDecisions() { return clone(state.decisions); }
+export function decisionsFor(mandateId) { return clone(byMandate.get(mandateId) || []); }
+export function findDecision(id) { return clone(state.decisions.find((d) => d.id === id)); }
 export function lastDecision() { return clone(state.decisions[state.decisions.length - 1]); }
-export function reset() { state = empty(); persist(); }
+export function reset() { state = empty(); reindex(); persist(); }
 
 // Test/demo hook: lets a test simulate an attacker editing the store directly.
-export function _tamper(fn) { fn(state); }
+export function _tamper(fn) { fn(state); reindex(); }
 
 // Server secret used to seal mandates. Env wins; otherwise generated once and kept
 // next to the data so seals survive a restart.
