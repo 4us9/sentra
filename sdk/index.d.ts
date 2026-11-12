@@ -26,8 +26,9 @@ export interface PaymentResult {
   processor: string;
   id: string;
   status: string;
-  mode: 'sandbox' | 'test' | 'simulated';
-  /** The processor's record was read back and matches what was approved. */
+  /** 'external' = Sentra authorised only; the caller executes the payment itself. */
+  mode: 'sandbox' | 'test' | 'simulated' | 'external';
+  /** The processor's record was read back and matches what was approved. Always false for 'external'. */
   verified: boolean;
 }
 

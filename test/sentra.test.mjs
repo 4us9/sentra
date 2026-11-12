@@ -441,6 +441,17 @@ test('processors: same verdicts on every rail (the engine never sees the process
   const run = async (processor) => Promise.all(attacks.map((a) => verdict(mandate({ processor }), a, [], none)));
   assert.deepEqual(await run('paypal'), await run('stripe'));
 });
+test('processors: external rail authorises and debits but never claims verification', async () => {
+  store.reset();
+  const { id, token } = issue({ processor: 'external' });
+  const d = await pay(token, ok);
+  assert.equal(d.verdict, 'ALLOW');
+  assert.equal(d.payment.mode, 'external');
+  assert.equal(d.payment.verified, false);
+  assert.equal(d.paymentId, 'AUTH-' + d.id);
+  assert.equal(store.getMandate(id).spent, 40);
+  assert.equal((await pay(token, { ...ok, purpose: 'gift card' })).verdict, 'BLOCK');
+});
 test('processors: Stripe minor units', () => {
   assert.equal(minorUnits(40.5, 'USD'), 4050);
   assert.equal(minorUnits(0.29, 'USD'), 29);
