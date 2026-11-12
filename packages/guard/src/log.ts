@@ -17,6 +17,7 @@ export function redactText(text: unknown): { len: number; sha256_8?: string } {
 
 const SECRET_SHAPES: RegExp[] = [
   /\bsat_[A-Za-z0-9_-]{8,}/g,                // Sentra agent tokens
+  /\bsk_sentra_[A-Za-z0-9_-]{8,}/g,          // Sentra operator API keys
   /\b(sk|rk|pk)_(test|live)_[A-Za-z0-9]{8,}/g, // Stripe keys
   /\bsk-ant-[A-Za-z0-9_-]{8,}/g,             // Anthropic keys
   /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi,
