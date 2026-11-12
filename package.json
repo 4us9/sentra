@@ -4,6 +4,14 @@
   "description": "Sentra — a runtime firewall between AI agents and PayPal. Inspects every agent payment before it executes and blocks the malicious ones.",
   "type": "module",
   "private": true,
+  "exports": {
+    ".": "./sdk/index.js",
+    "./sdk": {
+      "types": "./sdk/index.d.ts",
+      "default": "./sdk/index.js"
+    }
+  },
+  "types": "./sdk/index.d.ts",
   "engines": {
     "node": ">=18"
   },
@@ -11,6 +19,7 @@
     "start": "node src/server.js",
     "demo": "node agent/demoAgent.js",
     "mcp": "node mcp/sentra-mcp.js",
+    "verify-ledger": "node scripts/verify-ledger.js",
     "test": "node --test test/*.test.mjs",
     "test:adversarial": "node --test test/adversarial.test.mjs"
   },
