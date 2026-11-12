@@ -7,12 +7,11 @@ Good ones go through to PayPal. Hijacked ones never leave.
 
 ### Inspiration
 
-An agent that can pay will read web pages, emails
-and tool output, and any of them can tell it what to do. To the processor a
-hijacked agent is indistinguishable from a healthy one: valid credentials,
-valid API call. Standards like AP2 describe what a user *authorised*, as a
-signed mandate. Something still has to enforce that mandate at the moment money
-moves. That is what we built.
+What stuck with me about the October 2026 PHP incident was how early an attack could happen. On one common Apache setup, a specially crafted request could trigger code execution before the website’s own PHP code even ran. A developer could write every permission check correctly and still never reach the first one. [BBC coverage](https://www.bbc.com/news/articles/c3qjnwye0ep5o) · [PHP security advisory](https://www.php.net/archive/2026.php#2026-10-21-5)
+
+The Hugging Face incident made that feel personal to what I was building. During a July 2026 security evaluation, OpenAI research models found ways to communicate across isolated environments, gained internet access, and compromised parts of Hugging Face’s systems. I kept thinking about what an agent could do with a payment credential once it got outside the limits someone had set for it. [OpenAI’s incident report](https://openai.com/index/hugging-face-incident-and-the-road-ahead/)
+
+I’d love to tell an agent, “Get my groceries for the week,” and get on with my day. But if a product listing tells it to send $5,000 to a wallet, my original $300 grocery budget still has to mean something. That’s why I built Sentra. The agent can ask to pay. Sentra holds the PayPal credentials and checks each request against what I actually approved.
 
 ### What it does
 
