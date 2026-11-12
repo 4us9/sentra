@@ -1,4 +1,5 @@
-export type Verdict = 'ALLOW' | 'BLOCK' | 'REVIEW' | 'ERROR';
+/** INFO only appears on operator events (kind 'event') in the ledger, never as the answer to guard(). */
+export type Verdict = 'ALLOW' | 'BLOCK' | 'REVIEW' | 'ERROR' | 'INFO';
 export type Layer = 'schema' | 'rule' | 'anomaly' | 'intent' | 'human' | 'processor';
 
 export interface PaymentRequest {
@@ -50,7 +51,7 @@ export interface Decision {
     currency: string;
     recipient: string;
     purpose: string;
-    idempotencyKey: string | null;
+    idempotencyKey?: string | null;
   };
   payment: PaymentResult | null;
   paymentId: string | null;
@@ -68,6 +69,8 @@ export interface Decision {
 export interface Mandate {
   id: string;
   user: string;
+  /** Name of the policy file this mandate was issued from, if any. */
+  policy: string | null;
   description: string;
   scope: string[];
   processor: string;
@@ -83,6 +86,9 @@ export interface Mandate {
   spent: number;
   status: 'active' | 'frozen';
   frozenReason: string | null;
+  breakerResetAt: string | null;
+  /** Amount held by payments that are in flight. Present on /api/state. */
+  reserved?: number;
   sealValid: boolean;
 }
 
