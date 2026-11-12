@@ -1,7 +1,7 @@
 # STATUS
 
 Updated Nov 12 2026 (Regina time). Deadline 2:00pm Regina.
-Known-good tags: `submission-candidate-v1`, `submission-candidate-v2` (see the end).
+Known-good tags: `submission-candidate-v1`, `-v2`, `-v3` (see the end).
 
 ## Done and verified
 
@@ -32,7 +32,10 @@ Known-good tags: `submission-candidate-v1`, `submission-candidate-v2` (see the e
 - SDK over real HTTP (`guard`, `guardOrThrow`, `mandate`, `protect`), policy files
   and the strict validator, ledger query and formula-safe CSV, JSON and
   Prometheus metrics, log redaction.
-- `npm run typecheck` (tsc --checkJs, non-strict) is clean.
+- `npm run typecheck` (`tsc --strict --checkJs`) is clean.
+- Four bugs found in the typing review are fixed and regression-tested: mandate
+  replacement via `POST /api/mandates`, stale token after replacement, demo reset
+  during an in-flight payment, mislabelled joined failures.
 
 **Verified by hand**
 - MCP server over stdio (initialize, tools/list, `pay`, `mandate`) against a
@@ -93,3 +96,6 @@ switch / reinstate, ledger with processor filter, check trace and two CSV export
 ## Tags
 - `submission-candidate-v1`: single-rail PayPal firewall, live-verified, adversarial suite.
 - `submission-candidate-v2`: processor-agnostic core, SDK, policies, ledger/metrics, CI.
+- `submission-candidate-v3`: v2 plus strict types and the four fixes above. Tests
+  green; not re-run live after these last changes (they do not touch the decision
+  or processor path for a normal payment).

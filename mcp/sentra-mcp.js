@@ -108,7 +108,7 @@ async function handle(msg) {
       return reply({ jsonrpc: '2.0', id, result: {
         protocolVersion: params?.protocolVersion || '2025-06-18',
         capabilities: { tools: {} },
-        serverInfo: { name: 'sentra', version: '0.2.0' },
+        serverInfo: { name: 'sentra', version: '0.3.0' },
         instructions: 'Payments go through the Sentra firewall. Call `mandate` to see what you are allowed to spend, then `pay`.',
       } });
     }

@@ -34,6 +34,14 @@ Processor-agnostic core and the developer surface.
   20/22/24 with a secrets-hygiene job.
 - **Docs.** Threat model, processor guide, integration examples.
 
+- **Strict types.** `tsc --strict --checkJs` is clean; domain types in
+  `src/types.d.ts`.
+- **Fixed during the typing review:** `POST /api/mandates` accepted arbitrary
+  fields including `id`, so an existing mandate could be replaced and widened
+  (now an allowlist of `processor` and `user`); a replaced mandate's old token
+  kept working; a demo reset during an in-flight payment threw and lost the
+  record; a failed joined request was labelled as a replay.
+
 Breaking: decisions carry `processor`, `payment` and `paymentId` instead of
 `paypal` and `paypalOrderId`. `src/paypal.js` is now `src/processors/paypal.js`.
 Reason layer `paypal` is now `processor`.

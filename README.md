@@ -273,7 +273,6 @@ ledger resets on restart; fine for a demo.
 - The no-model intent fallback is a keyword vocabulary: a floor, not a substitute
   for the model. The signature list is a floor too; the corpus is how it grows.
 - Operator auth is a single shared token; the demo runs with it off.
-- Type checking is `tsc --checkJs` in non-strict mode.
 
 ## Layout
 
@@ -287,6 +286,7 @@ src/mandate.js          mandate model, HMAC seal, agent tokens
 src/audit.js            hash chain          src/ledger.js    query, CSV, metrics
 src/ratelimit.js        token buckets       src/log.js       redacting decision log
 src/server.js           HTTP API + dashboard host
+src/types.d.ts          shared domain types (checked with tsc --strict, no build step)
 sdk/                    client SDK + .d.ts  mcp/             MCP server
 policies/               policy files        examples/        integration examples
 agent/                  scripted demo agent + attack scenarios

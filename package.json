@@ -1,7 +1,7 @@
 {
   "name": "sentra",
-  "version": "0.2.0",
-  "description": "Sentra — a runtime firewall between AI agents and PayPal. Inspects every agent payment before it executes and blocks the malicious ones.",
+  "version": "0.3.0",
+  "description": "Sentra — a processor-agnostic firewall between AI agents and the money. Inspects every agent payment before it executes on PayPal or Stripe and blocks the malicious ones.",
   "type": "module",
   "private": true,
   "exports": {
