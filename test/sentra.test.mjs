@@ -404,6 +404,40 @@ test('idempotency: the same key sent concurrently is executed once', async () =>
   assert.equal(store.getMandate(id).spent, 40);
   assert.equal(proc.calls[0].idempotencyKey, out[0].id, 'the decision id is the processor idempotency key');
 });
+test('idempotency: reusing a key for a different payment is refused, not silently replayed', async () => {
+  store.reset();
+  const { id, token } = issue({ ...wide });
+  const proc = fakeProcessor({ delay: 30 });
+  const first = guardPayment(token, { ...ok, idempotencyKey: 'k1' }, { semantic: low, processor: proc });
+  await sleep(5);
+  const inFlightClash = await guardPayment(token, { ...ok, amount: 70, idempotencyKey: 'k1' }, { semantic: low, processor: proc });
+  assert.equal(inFlightClash.status, 409);
+  await first;
+  const settledClash = await guardPayment(token, { ...ok, recipient: 'merchant_greengrocer', idempotencyKey: 'k1' }, { semantic: low, processor: proc });
+  assert.equal(settledClash.status, 409);
+  const same = await guardPayment(token, { ...ok, amount: '40.00', idempotencyKey: 'k1' }, { semantic: low, processor: proc });
+  assert.equal(same.status, 200);                      // same payment, different spelling of the amount
+  assert.equal(same.body.replayed, true);
+  assert.equal(proc.calls.length, 1);
+  assert.equal(store.getMandate(id).spent, 40);
+});
+test('store: mandates, seals, tokens and the ledger survive a restart', async () => {
+  store.reset();
+  const { id, token } = issue();
+  await pay(token, ok);
+  const file = path.join(process.env.SENTRA_DATA_DIR, 'db.json');
+  const onDisk = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(onDisk.decisions.length, 1);
+  assert.equal(fs.existsSync(file + '.tmp'), false, 'atomic write must not leave a temp file behind');
+  assert.equal(onDisk.mandates[id].tokenHash.length, 64);
+  assert.ok(!JSON.stringify(onDisk).includes(token), 'the agent token itself must never be persisted');
+  // A fresh copy of the store module is what a restarted process sees.
+  const reloaded = await import('../src/store.js?restart=' + Date.now());
+  assert.equal(reloaded.getMandate(id).spent, 40);
+  assert.equal(reloaded.decisionsFor(id).length, 1);
+  assert.equal(reloaded.mandateByTokenHash(onDisk.mandates[id].tokenHash).id, id);
+  assert.equal(sealValid(reloaded.getMandate(id)), true);
+});
 test('review: two concurrent approvals of one held payment execute it once', async () => {
   store.reset();
   const { id, token } = issue({ ...wide });
