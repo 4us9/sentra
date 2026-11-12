@@ -23,6 +23,8 @@ const INJECTION = any([
   'do not (tell|alert|notify|inform)', "don'?t (tell|alert|notify|inform)",
   '\\burgent(ly)?\\b', '\\bimmediately\\b', 'verif(y|ication)',
   'account .{0,30}(lock|suspend|clos|block)',
+  // A purchase description has no reason to carry a link, a formula or markup.
+  'https?://', '\\bwww\\.', '^\\s*[=@+]', '<\\s*(script|img|iframe|svg|a)\\b',
 ]);
 
 // Ways of turning a purchase into cash, or into value for someone else.
