@@ -5,22 +5,31 @@ services:
     name: sentra
     runtime: node
     plan: free
-    buildCommand: npm ci
+    buildCommand: npm ci --omit=dev
     startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: SENTRA_TRUST_PROXY
+        value: "1"
+      - key: SENTRA_SECRET
+        generateValue: true
+      # PayPal SANDBOX REST app.
       - key: PAYPAL_BASE
         value: https://api-m.sandbox.paypal.com
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET
         sync: false
-      - key: SENTRA_SECRET
-        generateValue: true
+      # Optional: Stripe TEST key (sk_test_...). Leave unset and Stripe runs simulated.
+      - key: STRIPE_SECRET_KEY
+        sync: false
       # Optional: turns on the Claude intent check. Leave unset to use the fallback.
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-haiku-5-5
+      # Keeps a public demo from running up a model bill.
       - key: SENTRA_LLM_HOURLY_CAP
         value: "60"
