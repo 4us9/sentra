@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import * as store from './store.js';
 import { getProcessor, processorStatus } from './processors/index.js';
 import { createMandate, publicMandate } from './mandate.js';
-import { guardPayment, resolveReview, setFrozen, auditStatus, mandateForToken, reservedTotal } from './guard.js';
+import { guardPayment, resolveReview, setFrozen, recordIssued, auditStatus, mandateForToken, reservedTotal } from './guard.js';
 import { llmConfigured, intentModel } from './intent.js';
 import { loadPolicies, mandateFromPolicy } from './policy/config.js';
 import { queryLedger, toCsv, computeMetrics, toPrometheus } from './ledger.js';
@@ -99,7 +99,7 @@ app.get('/metrics', (req, res) => res.type('text/plain; version=0.0.4').send(toP
 
 // ---- Operator surface ----
 // Body: { policy?: "<name in policies/>", processor?: "paypal"|"stripe", ...field overrides }
-app.post('/api/mandates', opLimit, operator, (req, res) => {
+app.post('/api/mandates', opLimit, operator, async (req, res) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const { policy: wanted, ...overrides } = body;
@@ -108,6 +108,7 @@ app.post('/api/mandates', opLimit, operator, (req, res) => {
     const base = name ? mandateFromPolicy(POLICIES[name]) : {};
     const { mandate, agentToken } = createMandate({ ...base, ...overrides });
     store.saveMandate(mandate);
+    await recordIssued(mandate);                                  // issuance is on the ledger too
     res.json({ mandate: publicMandate(mandate), agentToken });   // token is shown once
   } catch (e) { res.status(400).json({ error: String(e.message || e) }); }
 });

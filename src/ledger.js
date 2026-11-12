@@ -5,6 +5,7 @@
 /**
  * @typedef {Object} LedgerQuery
  * @property {string} [verdict]    ALLOW | BLOCK | REVIEW | ERROR | INFO (comma-separated allowed)
+ * @property {string} [kind]       payment | review_resolution | event (comma-separated allowed)
  * @property {string} [mandate]    mandate id
  * @property {string} [layer]      layer that decided: schema | rule | anomaly | intent | human | processor
  * @property {string} [check]      check that decided, e.g. per_tx_cap
@@ -21,11 +22,13 @@ const list = (v) => String(v || '').split(',').map((s) => s.trim()).filter(Boole
 /** @param {any[]} decisions @param {LedgerQuery} query */
 export function queryLedger(decisions, query = {}) {
   const verdicts = list(query.verdict).map((s) => s.toUpperCase());
+  const kinds = list(query.kind);
   const since = query.since ? Date.parse(query.since) : null;
   const until = query.until ? Date.parse(query.until) : null;
   const q = String(query.q || '').toLowerCase();
   const rows = decisions.filter((d) => {
     if (verdicts.length && !verdicts.includes(d.verdict)) return false;
+    if (kinds.length && !kinds.includes(d.kind)) return false;
     if (query.mandate && d.mandateId !== query.mandate) return false;
     if (query.layer && d.decidedBy?.layer !== query.layer) return false;
     if (query.check && d.decidedBy?.check !== query.check) return false;

@@ -165,21 +165,26 @@ test('ledger: query by verdict, layer, processor and text; CSV export', async ()
   await ss.guard({ ...ok, purpose: '=HYPERLINK("http://evil.example","click")' });
 
   const q = async (qs) => JSON.parse((await get('/api/ledger?' + qs)).text);
-  assert.equal((await q('')).total, 5);
+  assert.equal((await q('')).total, 7);                        // 5 payments + 2 mandate-issued events
+  assert.equal((await q('kind=payment')).total, 5);
+  const issued = (await q('kind=event')).entries;
+  assert.equal(issued.length, 2);
+  assert.equal(issued[0].reasons[0].check, 'mandate_issued');
+  assert.match(issued[0].reasons[0].detail, /from policy "grocery-run".*rail paypal/);
   assert.equal((await q('verdict=ALLOW')).total, 2);
   assert.equal((await q('verdict=BLOCK,REVIEW')).total, 3);
   assert.equal((await q('layer=intent')).total, 2);
   assert.equal((await q('layer=schema')).entries[0].decidedBy.check, 'amount_format');
-  assert.equal((await q('processor=stripe')).total, 3);
+  assert.equal((await q('processor=stripe&kind=payment')).total, 3);
   assert.equal((await q('q=gift')).total, 1);
-  assert.equal((await q(`mandate=${p.mandate.id}`)).total, 2);
-  assert.equal((await q('limit=2&offset=4')).entries.length, 1);
+  assert.equal((await q(`mandate=${p.mandate.id}&kind=payment`)).total, 2);
+  assert.equal((await q('limit=2&offset=6')).entries.length, 1);
   assert.equal((await q('')).audit.ok, true);
 
   const csv = await get('/api/ledger?format=csv');
   assert.match(csv.headers.get('content-type'), /text\/csv/);
   const lines = csv.text.trim().split('\r\n');
-  assert.equal(lines.length, 6);
+  assert.equal(lines.length, 8);
   assert.match(lines[0], /^seq,time,decision_id,.*decided_by_layer,decided_by_check,.*prev_hash,hash$/);
   assert.ok(csv.text.includes(`"'=HYPERLINK(""http://evil.example"",""click"")"`), 'formula cell must be neutralised');
 });
@@ -228,13 +233,14 @@ test('verify-ledger: exits 0 on an intact ledger and 1 after tampering', async (
   const file = path.join(DATA, 'db.json');
   const original = fs.readFileSync(file, 'utf8');
   const db = JSON.parse(original);
-  db.decisions[2].verdict = 'ALLOW';                                   // rewrite a BLOCK
+  const i = db.decisions.findIndex((d) => d.verdict === 'BLOCK');
+  db.decisions[i].verdict = 'ALLOW';                                   // rewrite a BLOCK
   Object.values(db.mandates)[0].budgetTotal = 1e9;                     // and raise a limit
   fs.writeFileSync(file, JSON.stringify(db));
   const dirty = run();
   fs.writeFileSync(file, original);
   assert.equal(dirty.status, 1);
-  assert.match(dirty.stdout, /ledger\s+TAMPERED entry #2/);
+  assert.match(dirty.stdout, new RegExp(`ledger\\s+TAMPERED entry #${i} `));
   assert.match(dirty.stdout, /mandate\s+TAMPERED/);
 
   assert.equal(spawnSync(process.execPath, ['scripts/verify-ledger.js', '/nonexistent/db.json'], { encoding: 'utf8' }).status, 2);

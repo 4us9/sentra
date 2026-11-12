@@ -290,7 +290,27 @@ export async function resolveReview(decisionId, action, { now = Date.now, operat
   }
 }
 
-// Operator actions (freeze / reinstate) go on the same ledger.
+// Operator actions go on the same ledger as payments, so "who allowed this agent to
+// spend, and when was it frozen or reinstated" is answered by one tamper-evident record.
+function appendEvent(mandate, t0, check, detail, effects = []) {
+  const event = baseDecision(newId(t0), 'event', mandate, t0);
+  Object.assign(event, {
+    verdict: 'INFO', intentSource: 'human',
+    request: { amount: 0, currency: mandate.currency, recipient: '', purpose: '' },
+    reasons: [{ layer: 'human', check, result: 'info', detail }],
+    effects,
+  });
+  return append(event);
+}
+
+/** Record that a mandate was issued. Called once, right after it is first saved. */
+export function recordIssued(mandate, { now = Date.now, operator = 'operator' } = {}) {
+  return withLock(mandate.id, async () => appendEvent(
+    mandate, now(), 'mandate_issued',
+    `issued by ${operator}${mandate.policy ? ` from policy "${mandate.policy}"` : ''}: ${mandate.currency} ${mandate.budgetTotal} budget, ${mandate.perTxCap} per payment, ${mandate.allowedRecipients.length} recipient(s), rail ${mandate.processor}`,
+  ));
+}
+
 export function setFrozen(mandateId, frozen, { now = Date.now, operator = 'operator' } = {}) {
   return withLock(mandateId, async () => {
     const mandate = store.getMandate(mandateId);
@@ -300,14 +320,9 @@ export function setFrozen(mandateId, frozen, { now = Date.now, operator = 'opera
     mandate.frozenReason = frozen ? `kill switch: frozen by ${operator}` : null;
     if (!frozen) mandate.breakerResetAt = new Date(t0).toISOString();
     store.saveMandate(mandate);
-    const event = baseDecision(newId(t0), 'event', mandate, t0);
-    Object.assign(event, {
-      verdict: 'INFO', intentSource: 'human',
-      request: { amount: 0, currency: mandate.currency, recipient: '', purpose: '' },
-      reasons: [{ layer: 'human', check: frozen ? 'kill_switch' : 'reinstate', result: 'info', detail: frozen ? `mandate frozen by ${operator}` : `mandate reinstated by ${operator}` }],
-      effects: [frozen ? 'mandate_frozen' : 'mandate_reinstated'],
-    });
-    append(event);
+    appendEvent(mandate, t0, frozen ? 'kill_switch' : 'reinstate',
+      frozen ? `mandate frozen by ${operator}` : `mandate reinstated by ${operator}`,
+      [frozen ? 'mandate_frozen' : 'mandate_reinstated']);
     return { status: 200, body: mandate };
   });
 }
