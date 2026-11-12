@@ -12,20 +12,12 @@
 // anything that is not a clean verdict becomes REVIEW, never ALLOW.
 import './env.js';
 
-const INJECTION = /ignore (all |any |the )?(previous|prior|above|earlier)|system override|override|as instructed|per (the )?instructions?|instructions? in|urgent|immediately|verif(y|ication)|account .*(lock|suspend)|do not (tell|alert|notify)/i;
-const CASH_OUT = /gift ?card|crypto|bitcoin|\bbtc\b|\beth\b|wallet|\bwire\b|transfers?\b|cash ?out|money order|voucher|send (me |them )?the code|prepaid/i;
+import { signatureScan } from './signatures.js';
+
+export { signatureScan };
 
 const ORDER = { low: 0, med: 1, high: 2 };
 const worst = (a, b) => (ORDER[a] >= ORDER[b] ? a : b);
-
-export function signatureScan(request) {
-  const purpose = String(request.purpose || '');
-  const inj = purpose.match(INJECTION);
-  if (inj) return { risk: 'high', reason: `purpose contains hijack language ("${inj[0]}")` };
-  const cash = purpose.match(CASH_OUT);
-  if (cash) return { risk: 'high', reason: `purpose names a cash-out instrument ("${cash[0]}")` };
-  return { risk: 'low', reason: 'no hijack signatures' };
-}
 
 export function vocabularyFallback({ mandate, request }) {
   const purpose = String(request.purpose || '').toLowerCase();

@@ -23,7 +23,8 @@ export function validateRequest(raw, mandate) {
     amount = toCents(asText) / 100;
   }
 
-  const currency = r.currency === undefined ? mandate.currency : String(r.currency).toUpperCase();
+  const currency = r.currency === undefined ? mandate.currency
+    : typeof r.currency === 'string' ? r.currency.toUpperCase() : '';
   if (!CURRENCY.test(currency)) errors.push({ check: 'currency_format', detail: 'currency must be a 3-letter ISO code' });
 
   const recipient = typeof r.recipient === 'string' ? r.recipient : '';
