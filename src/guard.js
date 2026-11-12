@@ -83,6 +83,9 @@ function release(mandateId, decisionId) {
   const m = inflight.get(mandateId);
   if (m) { m.delete(decisionId); if (m.size === 0) inflight.delete(mandateId); }
 }
+/** Drop all in-flight bookkeeping. Used with store.reset() by the demo reset. */
+export function resetGuardState() { inflight.clear(); pendingByKey.clear(); }
+
 /** @param {string} mandateId */
 export const reservedTotal = (mandateId) =>
   round2([...reservations(mandateId).values()].reduce((a, r) => a + r.amount, 0));
@@ -152,7 +155,8 @@ function baseDecision(id, kind, mandate, t0) {
 // Only the agent's own blocked attempts count; a human denying a held payment does not.
 /** @param {PendingDecision} decision @param {number} now */
 function tripBreaker(decision, now) {
-  const mandate = /** @type {Mandate} */ (store.getMandate(decision.mandateId));
+  const mandate = store.getMandate(decision.mandateId);
+  if (!mandate) return;
   if (decision.kind !== 'payment' || decision.verdict !== 'BLOCK' || mandate.status === 'frozen') return;
   const since = Math.max(now - mandate.breaker.windowSec * 1000, mandate.breakerResetAt ? new Date(mandate.breakerResetAt).getTime() : 0);
   const blocks = ledgerHistory(mandate.id)
@@ -190,8 +194,17 @@ async function executeAndCommit(decision, { processor, now }) {
 
   return withLock(decision.mandateId, async () => {
     release(decision.mandateId, decision.id);
-    if (result) {
-      const mandate = /** @type {Mandate} */ (store.getMandate(decision.mandateId));
+    const live = store.getMandate(decision.mandateId);
+    if (result && !live) {
+      // The mandate was removed (demo reset) while this payment was at the processor.
+      // The payment happened, so it goes on the record even though nothing can be debited.
+      decision.payment = result;
+      decision.paymentId = result.id;
+      decision.verdict = 'ERROR';
+      decision.reasons.push({ layer: 'processor', check: 'mandate_missing', result: 'error', detail: `payment ${result.id} was executed, but its mandate no longer exists, so it could not be debited` });
+      decision.decidedBy = decidedBy(decision.reasons);
+    } else if (result) {
+      const mandate = /** @type {Mandate} */ (live);
       mandate.spent = round2(mandate.spent + /** @type {number} */ (decision.request.amount));
       store.saveMandate(mandate);
       decision.payment = result;
@@ -250,7 +263,7 @@ export async function guardPayment(token, body, { now = Date.now, semantic, proc
     return { decision, screening, mandate };
   });
   if (first.done) return first.done;
-  if (first.join) return first.join.then((r) => ({ status: r.status, body: { ...r.body, replayed: true } }));
+  if (first.join) return first.join.then((r) => (r.status === 200 ? { status: 200, body: { ...r.body, replayed: true } } : r));
 
   const { decision, screening, mandate } = first;
   const rest = (async () => {
@@ -263,8 +276,10 @@ export async function guardPayment(token, body, { now = Date.now, semantic, proc
       const stop = await withLock(mandateId, async () => {
         const t = now();
         if (decision.verdict === 'ALLOW') {
-          const fresh = /** @type {Mandate} */ (store.getMandate(mandateId));
-          const gate = [mandateIntegrity(fresh), mandateActive(fresh)].filter((r) => !r.pass);
+          const fresh = store.getMandate(mandateId);
+          const gate = fresh
+            ? [mandateIntegrity(fresh), mandateActive(fresh)].filter((r) => !r.pass)
+            : [{ name: 'mandate_exists', pass: false, detail: 'mandate no longer exists' }];
           if (gate.length === 0) return null;
           decision.verdict = 'BLOCK';
           decision.reasons.push(...gate.map(/** @returns {Reason} */ (r) => ({ layer: 'rule', check: r.name, result: 'FAIL', detail: `${r.detail} (changed while this payment was in flight)` })));
