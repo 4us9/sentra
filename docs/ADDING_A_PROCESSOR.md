@@ -69,7 +69,7 @@ DEMO_PROCESSORS=paypal,acme pnpm demo
 
 The demo prints whether verdicts are identical across the rails. They must be:
 if a verdict differs by processor, something in the engine has started to depend
-on the rail, which invariant 4 in `CLAUDE.md` forbids.
+on the rail.
 
-Then run it once against the processor's real sandbox and record the result in
-`STATUS.md`. Until that has happened, list the adapter there as unverified.
+Then run it once against the processor's real sandbox and document the result in
+the release notes or pull request before describing it as verified.

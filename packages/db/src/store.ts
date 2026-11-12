@@ -1,7 +1,7 @@
 // The Store contract the guard service runs on.
 //
 // Reads and writes are synchronous on purpose. The guard's concurrency model
-// (reserve -> execute -> commit, CLAUDE.md invariant 3) holds the per-mandate lock
+// (reserve -> execute -> commit) holds the per-mandate lock.
 // only for synchronous work, and the hash chain has exactly one writer because
 // "read the last entry, append the next" runs to completion without yielding. A
 // store that awaited the database inside that section would break both.
