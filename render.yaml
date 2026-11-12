@@ -6,13 +6,17 @@ services:
     runtime: node
     plan: free
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
-    startCommand: pnpm start
+    startCommand: pnpm start:render
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: "22"
       - key: SENTRA_TRUST_PROXY
         value: "1"
+      - key: NEXT_PUBLIC_SENTRA_API
+        value: /sentra-api
+      - key: SENTRA_DEV_PROXY
+        value: http://127.0.0.1:4000
       - key: SENTRA_SECRET
         generateValue: true
       # PayPal SANDBOX REST app.

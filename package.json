@@ -12,6 +12,7 @@
     "typecheck": "turbo run typecheck",
     "dev": "turbo run dev",
     "start": "pnpm --filter @sentra/service start",
+    "start:render": "node scripts/start-render.mjs",
     "demo": "pnpm --filter @sentra/service demo",
     "verify-ledger": "pnpm --filter @sentra/service verify-ledger"
   },
