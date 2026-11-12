@@ -1,0 +1,12 @@
+{
+  "name": "@sentra/mcp",
+  "version": "0.4.0",
+  "description": "MCP server exposing Sentra's pay and mandate tools to any MCP-capable agent.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "sentra-mcp": "./dist/sentra-mcp.js" },
+  "files": ["dist"],
+  "scripts": { "build": "tsc -p tsconfig.build.json", "typecheck": "tsc -p tsconfig.json --noEmit", "test": "vitest run", "start": "node dist/sentra-mcp.js" },
+  "dependencies": { "@sentra/sdk": "workspace:*" },
+  "devDependencies": { "@types/node": "^22.10.0", "typescript": "^5.7.2", "vitest": "^2.1.8" }
+}
