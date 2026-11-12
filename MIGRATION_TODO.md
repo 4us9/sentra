@@ -20,11 +20,13 @@ global pnpm).
 - `packages/service/test/**`: a sub-agent was porting `test/sentra.test.mjs`,
   `test/http.test.mjs`, `test/scenarios.test.mjs` and the corpus through
   `guardPayment` to Vitest. If it is partial, finish it (brief below).
-- `apps/web/**`: a sub-agent was building the Next.js 15 + Tailwind + shadcn app
-  (landing, docs, pricing, dashboard pages, TanStack ledger, optional Clerk).
-  Check it with `pnpm --filter @sentra/web build` and
-  `grep -rn dangerouslySetInnerHTML apps/web --include=*.tsx` (must be empty).
-- `pnpm-lock.yaml` is not committed yet (web deps were still being added).
+- `apps/web` is now committed: Next.js 15, Tailwind v4, shadcn-style components,
+  a TanStack ledger, a nonce CSP and optional Clerk.
+  - Verified by its sub-agent against the legacy Express server, through a
+    dev-only `SENTRA_DEV_PROXY`, at 1440px and 390px.
+  - Not yet run against the new Fastify service, with CORS, instead of the proxy.
+  - Clerk, review approve/deny, freeze/reinstate and CSV download were not
+    exercised in the browser.
 
 ## Next, in order
 1. **Service tests.** Port the remaining guard/HTTP/scenario tests to
@@ -32,11 +34,11 @@ global pnpm).
    Cover the new parts too: API keys (root-only minting, read scope gets 403,
    revoked key gets 401, `sat_` never accepted as an operator credential), 503 when
    the store is not durable, and CORS. Never weaken an assertion; fix product code instead.
-2. **Web app.** Finish, build, and check it against the service:
+2. **Web app.** Check it against the new service instead of the dev proxy:
    `SENTRA_WEB_ORIGIN=http://localhost:3100 PORT=4000 pnpm start`, then
    `NEXT_PUBLIC_SENTRA_API=http://localhost:4000 pnpm --filter @sentra/web start`.
    Check landing, dashboard, Attack Lab and ledger at 1440px and 390px with no
-   console errors. Commit `apps/web` and `pnpm-lock.yaml`.
+   console errors.
 3. **Delete the old tree** once 1 and 2 are green: `src/`, `sdk/`, `mcp/`,
    `agent/`, `scripts/`, `test/*.mjs`, `test/corpus/`, root `tsconfig.json`,
    `package-lock.json`. Move `examples/` to `@sentra/sdk` imports.
