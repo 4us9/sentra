@@ -17,7 +17,7 @@ export const DEFAULT_SCOPE = [
 
 const SEALED_FIELDS = [
   'id', 'user', 'description', 'scope', 'currency', 'budgetTotal', 'perTxCap',
-  'allowedRecipients', 'velocityLimit', 'breaker', 'expiresAt', 'tokenHash', 'createdAt',
+  'allowedRecipients', 'velocityLimit', 'breaker', 'outOfScope', 'expiresAt', 'tokenHash', 'createdAt',
 ];
 
 export const hashToken = (t) => crypto.createHash('sha256').update(String(t)).digest('hex');
@@ -64,6 +64,8 @@ export function createMandate(partial = {}, now = Date.now()) {
     velocityLimit: { count: posNumber(vl.count, 6, 'velocityLimit.count'), windowSec: posNumber(vl.windowSec, 60, 'velocityLimit.windowSec') },
     // Circuit breaker: this many BLOCKs inside the window freezes the mandate.
     breaker: { blocks: posNumber(br.blocks, 5, 'breaker.blocks'), windowSec: posNumber(br.windowSec, 120, 'breaker.windowSec') },
+    // What to do with an ordinary purchase that is outside the mandate's purpose.
+    outOfScope: partial.outOfScope === 'block' ? 'block' : 'review',
     expiresAt: partial.expiresAt ?? new Date(now + 24 * 3600 * 1000).toISOString(),
     tokenHash: hashToken(agentToken),
     createdAt: new Date(now).toISOString(),

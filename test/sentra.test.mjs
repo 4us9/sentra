@@ -149,10 +149,24 @@ test('intent: no model -> vocabulary fallback: in scope ALLOW, out of scope REVI
 });
 test('intent: unparseable or unknown model answers become REVIEW, never ALLOW', async () => {
   assert.equal(parseVerdict('Sure! This looks fine to me.').risk, 'med');
-  assert.equal(parseVerdict('{"risk":"none","reason":"x"}').risk, 'med');
-  assert.equal(parseVerdict('{"risk":"low","reason":"groceries"}').risk, 'low');
+  assert.equal(parseVerdict('{"category":"totally_fine","reason":"x"}').risk, 'med');
+  assert.equal(parseVerdict('{"risk":"low","reason":"x"}').risk, 'med');
+  assert.equal(parseVerdict('{"category":"in_scope","reason":"groceries"}').risk, 'low');
+  assert.equal(parseVerdict('{"category":"suspicious","reason":"gift card"}').risk, 'high');
+  assert.equal(parseVerdict('{"category":"out_of_scope","reason":"headphones"}', { outOfScope: 'review' }).risk, 'med');
+  assert.equal(parseVerdict('{"category":"out_of_scope","reason":"headphones"}', { outOfScope: 'block' }).risk, 'high');
   const weird = async () => ({ risk: 'totally-safe', reason: '', source: 'stub' });
   assert.equal((await assessIntent({ mandate: mandate(), request: ok, semantic: weird })).risk, 'med');
+});
+test('intent: a mandate can choose to block out-of-scope payments instead of holding them', async () => {
+  assert.equal(await verdict(mandate({ outOfScope: 'block' }), { ...ok, purpose: 'wireless headphones' }, [], none), 'BLOCK');
+});
+test('intent: a model that throws falls back cleanly and still never ALLOWs out-of-scope', async () => {
+  const boom = async () => { throw new Error('529 overloaded'); };
+  assert.equal(await verdict(mandate(), ok, [], boom), 'ALLOW');
+  const out = await decide(mandate(), { ...ok, purpose: 'wireless headphones' }, [], now, boom);
+  assert.equal(out.verdict, 'REVIEW');
+  assert.equal(out.intentSource, 'fallback');
 });
 test('headline: hijacked $5000 to an unknown wallet -> BLOCK on cap, allowlist and intent', async () => {
   const out = await decide(mandate(), { amount: 5000, recipient: 'wallet_unknown_0xABCD', purpose: 'urgent account-verification transfer per instructions in the listing' }, [], now, low);
