@@ -13,7 +13,7 @@ global pnpm).
 | root | pnpm workspaces, Turborepo, `tsconfig.base.json` |
 | `@sentra/guard` | pure engine in TS. No I/O. Secret, rails and reviewer injected with `configureGuard()`. 171 tests incl. the 93-attack corpus |
 | `@sentra/db` | `Store` contract, file store, Postgres store (Prisma), advisory-lock single writer, migration `0001_init`, 0.3 JSON importer. 7 tests (Postgres ones need `SENTRA_TEST_DATABASE_URL`) |
-| `@sentra/service` | Fastify API, same routes as 0.3, plus operator API keys (`/api/keys`), CORS, storage health. Demo verified on the file store and on Postgres: identical verdicts on both rails, second writer refused, chain intact after restart. **No tests yet** |
+| `@sentra/service` | Fastify API, same routes as 0.3, plus operator API keys (`/api/keys`), CORS, storage health. Demo verified on the file store and on Postgres: identical verdicts on both rails, second writer refused, chain intact after restart. 177 Vitest tests (guard, HTTP, auth, scenarios, corpus through `guardPayment`) |
 | `@sentra/sdk`, `@sentra/mcp` | TS ports, 19 tests |
 
 ## In progress when the session stopped (uncommitted; check before trusting)
@@ -29,7 +29,7 @@ global pnpm).
     exercised in the browser.
 
 ## Next, in order
-1. **Service tests.** Port the remaining guard/HTTP/scenario tests to
+1. ~~**Service tests.**~~ Done (177). Leftover: the corpus is loaded by path from packages/guard; export it properly or widen rootDir. Port the remaining guard/HTTP/scenario tests to
    `packages/service/test` with `createGuard` + `createMemoryStore()` + `app.inject()`.
    Cover the new parts too: API keys (root-only minting, read scope gets 403,
    revoked key gets 401, `sat_` never accepted as an operator credential), 503 when
