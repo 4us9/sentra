@@ -4,3 +4,8 @@ data/*
 !data/.gitkeep
 *.tmp
 .DS_Store
+dist/
+.turbo/
+.next/
+next-env.d.ts
+*.tsbuildinfo

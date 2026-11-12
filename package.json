@@ -1,36 +1,19 @@
 {
   "name": "sentra",
-  "version": "0.3.0",
-  "description": "Sentra — a processor-agnostic firewall between AI agents and the money. Inspects every agent payment before it executes on PayPal or Stripe and blocks the malicious ones.",
-  "type": "module",
+  "version": "0.4.0",
   "private": true,
-  "exports": {
-    ".": "./sdk/index.js",
-    "./sdk": {
-      "types": "./sdk/index.d.ts",
-      "default": "./sdk/index.js"
-    }
-  },
-  "types": "./sdk/index.d.ts",
-  "engines": {
-    "node": ">=18"
-  },
+  "description": "Sentra: a processor-agnostic firewall between AI agents and the money.",
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "engines": { "node": ">=20" },
   "scripts": {
-    "start": "node src/server.js",
-    "demo": "node agent/demoAgent.js",
-    "mcp": "node mcp/sentra-mcp.js",
-    "verify-ledger": "node scripts/verify-ledger.js",
-    "test": "node --test test/*.test.mjs",
-    "typecheck": "tsc -p tsconfig.json",
-    "test:adversarial": "node --test test/adversarial.test.mjs"
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "dev": "turbo run dev",
+    "start": "pnpm --filter @sentra/service start",
+    "demo": "pnpm --filter @sentra/service demo",
+    "verify-ledger": "pnpm --filter @sentra/service verify-ledger"
   },
-  "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0",
-    "express": "^4.19.2"
-  },
-  "devDependencies": {
-    "@types/express": "^4.17.25",
-    "@types/node": "^26.6.6",
-    "typescript": "^7.0.2"
-  }
+  "devDependencies": { "turbo": "^2.3.3", "typescript": "^5.7.2" }
 }
