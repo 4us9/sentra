@@ -24,6 +24,7 @@ import crypto from 'crypto';
 import * as store from './store.js';
 import { screen, conclude, intentFor, recheck, decidedBy } from './policy/engine.js';
 import { mandateIntegrity, mandateActive } from './policy/rules.js';
+import { validateRequest } from './policy/validate.js';
 import { chainEntry, GENESIS, verifyChain } from './audit.js';
 import { hashToken } from './mandate.js';
 import { getProcessor } from './processors/index.js';
@@ -40,7 +41,9 @@ function withLock(key, fn) {
 
 // ---- in-flight reservations: mandateId -> Map(decisionId -> { amount, at, key }) ----
 const inflight = new Map();
-const pendingByKey = new Map();          // `${mandateId}:${idempotencyKey}` -> Promise<result>
+const pendingByKey = new Map();          // `${mandateId}:${idempotencyKey}` -> { fingerprint, promise }
+const KEY_REUSED = { status: 409, body: { error: 'idempotencyKey was already used for a different payment' } };
+const fingerprint = (r) => JSON.stringify([r?.amount, r?.currency, r?.recipient, r?.purpose]);
 const reservations = (mandateId) => inflight.get(mandateId) || new Map();
 function reserve(mandateId, decisionId, amount, at, key) {
   if (!inflight.has(mandateId)) inflight.set(mandateId, new Map());
@@ -67,15 +70,12 @@ const round2 = (n) => Math.round(n * 100) / 100;
 
 export function mandateForToken(token) {
   if (!token) return null;
-  const h = Buffer.from(hashToken(token), 'hex');
-  return store.listMandates().find((m) => {
-    const t = Buffer.from(m.tokenHash, 'hex');
-    return t.length === h.length && crypto.timingSafeEqual(t, h);
-  }) || null;
+  // Looked up by the SHA-256 of the token: the token itself is never stored or
+  // compared, and a hash lookup leaks nothing useful through timing.
+  return store.mandateByTokenHash(hashToken(token));
 }
 
-const ledgerHistory = (mandateId) =>
-  store.listDecisions().filter((d) => d.mandateId === mandateId && d.kind !== 'event');
+const ledgerHistory = (mandateId) => store.decisionsFor(mandateId).filter((d) => d.kind !== 'event');
 
 // What the rules see: the ledger, plus every in-flight reservation counted as if it
 // had already been allowed (for budget, velocity and drain detection alike).
@@ -170,9 +170,16 @@ export async function guardPayment(token, body, { now = Date.now, semantic, proc
   const first = await withLock(mandateId, async () => {
     const t0 = now();
     if (key) {
-      const prior = ledgerHistory(mandateId).find((d) => d.request?.idempotencyKey === key);
-      if (prior) return { done: { status: 200, body: { ...prior, replayed: true } } };
-      if (pendingByKey.has(pendingKey)) return { join: pendingByKey.get(pendingKey) };
+      // A key names one payment. Reusing it for a different amount, recipient or
+      // purpose is refused rather than silently answered with the old decision.
+      const mine = fingerprint(validateRequest(body, found).request);
+      const prior = store.decisionsFor(mandateId).find((d) => d.request?.idempotencyKey === key);
+      if (prior) {
+        if (fingerprint(prior.request) !== mine) return { done: KEY_REUSED };
+        return { done: { status: 200, body: { ...prior, replayed: true } } };
+      }
+      const pending = pendingByKey.get(pendingKey);
+      if (pending) return pending.fingerprint === mine ? { join: pending.promise } : { done: KEY_REUSED };
     }
     const { mandate, view, history } = liveView(mandateId);
     const decision = baseDecision(newId(t0), 'payment', mandate, t0);
@@ -224,7 +231,12 @@ export async function guardPayment(token, body, { now = Date.now, semantic, proc
       if (pendingKey) pendingByKey.delete(pendingKey);
     }
   })();
-  if (pendingKey) pendingByKey.set(pendingKey, rest.catch(() => ({ status: 500, body: { error: 'the original request failed' } })));
+  if (pendingKey) {
+    pendingByKey.set(pendingKey, {
+      fingerprint: fingerprint(decision.request),
+      promise: rest.catch(() => ({ status: 500, body: { error: 'the original request failed' } })),
+    });
+  }
   return rest;
 }
 
@@ -239,14 +251,13 @@ const pick = (o) => ({ verdict: o.verdict, reasons: o.reasons, riskScore: o.risk
  * @returns {Promise<{ status: number, body: any }>}
  */
 export async function resolveReview(decisionId, action, { now = Date.now, operator = 'operator', processor } = {}) {
-  const held = store.listDecisions().find((d) => d.id === decisionId);
+  const held = store.findDecision(decisionId);
   if (!held || held.verdict !== 'REVIEW') return { status: 404, body: { error: 'no such held payment' } };
   if (!['approve', 'deny'].includes(action)) return { status: 400, body: { error: 'action must be approve or deny' } };
 
   const first = await withLock(held.mandateId, async () => {
     const t0 = now();
-    const all = store.listDecisions();
-    const taken = all.some((d) => d.resolves === decisionId)
+    const taken = store.decisionsFor(held.mandateId).some((d) => d.resolves === decisionId)
       || [...reservations(held.mandateId).values()].some((r) => r.key === `review:${decisionId}`);
     if (taken) return { done: { status: 409, body: { error: 'already resolved' } } };
 
