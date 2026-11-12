@@ -211,11 +211,11 @@ test('guard: ALLOW executes an order and debits; BLOCK does neither', async () =
   const { id, token } = issue();
   const a = await pay(token, ok);
   assert.equal(a.verdict, 'ALLOW');
-  assert.match(a.paypalOrderId, /^SIM-/);
+  assert.match(a.paymentId, /^SIM-PAYPAL-/);
   assert.equal(store.getMandate(id).spent, 40);
   const b = await pay(token, { amount: 5000, recipient: 'wallet_unknown_0xABCD', purpose: 'urgent transfer' });
   assert.equal(b.verdict, 'BLOCK');
-  assert.equal(b.paypalOrderId, null);
+  assert.equal(b.paymentId, null);
   assert.equal(store.getMandate(id).spent, 40);
 });
 test('guard: an agent token only ever reaches its own mandate', async () => {

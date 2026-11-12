@@ -40,8 +40,8 @@ for (const a of ATTACKS) {
     assert.equal(res.status, 200);
     const d = res.body;
     assert.ok(['BLOCK', 'REVIEW'].includes(d.verdict), `expected BLOCK or REVIEW, got ${d.verdict}`);
-    assert.equal(d.paypalOrderId, null, 'a processor was called');
-    assert.equal(d.payment ?? d.paypal ?? null, null, 'a processor was called');
+    assert.equal(d.paymentId, null, 'a processor was called');
+    assert.equal(d.payment, null, 'a processor was called');
     assert.equal(store.getMandate(id).spent, 0, 'budget moved');
     assert.ok(d.reasons.some((r) => ['FAIL', 'FLAG', 'high', 'med'].includes(r.result)), 'no reason recorded');
   });

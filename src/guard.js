@@ -96,7 +96,6 @@ function baseDecision(id, kind, mandate, t0) {
     request: null, verdict: 'BLOCK', reasons: [], riskScore: 0, intentSource: 'skipped', decidedBy: null,
     createdAt: new Date(t0).toISOString(),
     payment: null, paymentId: null,
-    paypalOrderId: null,                 // deprecated alias of paymentId for PayPal; removed with the dashboard update
     resolves: null, effects: [],
   };
 }
@@ -140,7 +139,6 @@ async function executeAndCommit(decision, { processor, now }) {
       store.saveMandate(mandate);
       decision.payment = result;
       decision.paymentId = result.id;
-      if (result.processor === 'paypal') decision.paypalOrderId = result.id;
     } else {
       // Fail closed: no payment id, no debit, and the failure is on the record.
       decision.verdict = 'ERROR';
