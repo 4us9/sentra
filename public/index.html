@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sentra - the firewall between AI agents and PayPal</title>
+  <title>Sentra - the firewall between AI agents and the money</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -11,11 +11,11 @@
     <div class="brand">
       <span class="mark" aria-hidden="true"></span>
       <h1>Sentra</h1>
-      <span class="tagline">The firewall between AI agents and PayPal</span>
+      <span class="tagline">The firewall between AI agents and the money.</span>
     </div>
     <div class="chips" id="chips" aria-live="polite">
       <span class="chip" id="chip-conn" hidden>Connection lost</span>
-      <span class="chip" id="chip-paypal">PayPal</span>
+      <span class="chip-group" id="chips-proc"></span>
       <span class="chip" id="chip-intent">Intent</span>
       <span class="chip" id="chip-audit">Ledger</span>
     </div>
@@ -23,7 +23,7 @@
 
   <main class="page">
 
-    <!-- Flow strip: Agent -> Sentra -> PayPal, plus headline numbers -->
+    <!-- Flow: Agent -> Sentra (4 layers) -> payment processor, then the live metrics strip -->
     <section class="flow" aria-label="How a payment flows through Sentra">
       <div class="pipe">
         <div class="node node-agent">
@@ -42,19 +42,29 @@
           </div>
         </div>
         <span class="wire" aria-hidden="true"></span>
-        <div class="node node-paypal">
+        <div class="node node-proc">
           <span class="node-k">Only on ALLOW</span>
-          <span class="node-t">PayPal</span>
-          <span class="node-s" id="flow-paypal-mode">Orders API</span>
+          <span class="node-t">Payment processor</span>
+          <span class="node-rails" id="flow-rails">PayPal · Stripe</span>
         </div>
       </div>
-      <dl class="stats">
-        <div class="stat"><dt>Allowed</dt><dd class="v-allow" id="st-allow">0</dd></div>
-        <div class="stat"><dt>Blocked</dt><dd class="v-block" id="st-block">0</dd></div>
-        <div class="stat"><dt>Held for review</dt><dd class="v-review" id="st-review">0</dd></div>
-        <div class="stat"><dt>Protected</dt><dd id="st-protected">$0.00</dd></div>
-        <div class="stat"><dt>Median decision</dt><dd id="st-latency">-</dd></div>
-      </dl>
+
+      <div class="metrics" aria-label="Live metrics">
+        <dl class="stats">
+          <div class="stat"><dt>Allowed</dt><dd class="v-allow" id="st-allow">0</dd></div>
+          <div class="stat"><dt>Blocked</dt><dd class="v-block" id="st-block">0</dd></div>
+          <div class="stat"><dt>Held</dt><dd class="v-review" id="st-review">0</dd><span class="stat-sub" id="st-pending"></span></div>
+          <div class="stat"><dt>Block rate</dt><dd id="st-rate">0%</dd></div>
+          <div class="stat"><dt>Value blocked</dt><dd id="st-blocked-value">$0.00</dd></div>
+          <div class="stat stat-spend"><dt>Spend by processor</dt><dd id="st-spend"></dd></div>
+          <div class="stat"><dt>Decision p50 / p95</dt><dd id="st-latency">-</dd></div>
+        </dl>
+        <div class="stopped" id="stopped">
+          <div class="stopped-h"><span>Stopped by layer</span><span id="sb-total">nothing stopped yet</span></div>
+          <div class="sbar" id="sbar" role="img" aria-label="Payments stopped, by the layer that decided"></div>
+          <div class="slegend" id="slegend"></div>
+        </div>
+      </div>
     </section>
 
     <div class="cols">
@@ -66,9 +76,24 @@
           <select id="mandate-select" class="select" aria-label="Select mandate" hidden></select>
         </div>
         <div id="mandate-body" class="mandate-body"></div>
-        <div class="panel-f">
-          <button type="button" class="btn btn-primary" id="btn-new-mandate">New mandate</button>
-          <button type="button" class="btn btn-ghost" id="btn-reset">Reset demo</button>
+
+        <!-- Issue a mandate: pick the policy, pick the rail -->
+        <div class="issue" id="issue">
+          <div class="issue-h">
+            <h3>Issue a mandate</h3>
+            <span class="panel-sub">Same firewall, any rail.</span>
+          </div>
+          <label class="f" for="policy-select"><span>Policy</span>
+            <select id="policy-select" class="select select-block"></select>
+          </label>
+          <p class="policy-sum" id="policy-summary"></p>
+          <div class="f"><span id="lbl-proc">Processor</span>
+            <div class="seg seg-rail" id="proc-toggle" role="radiogroup" aria-labelledby="lbl-proc"></div>
+          </div>
+          <div class="issue-f">
+            <button type="button" class="btn btn-primary" id="btn-new-mandate">Issue mandate</button>
+            <button type="button" class="btn btn-ghost" id="btn-reset">Reset demo</button>
+          </div>
         </div>
       </section>
 
@@ -114,13 +139,16 @@
         <span class="panel-sub" id="ledger-sub">Append-only and hash-chained. Click a row for its full check trace.</span>
         <div class="tools">
           <div class="seg" id="verdict-filter" role="group" aria-label="Filter by verdict">
-            <button type="button" class="seg-b is-on" data-v="">All</button>
-            <button type="button" class="seg-b" data-v="ALLOW">Allow</button>
-            <button type="button" class="seg-b" data-v="BLOCK">Block</button>
-            <button type="button" class="seg-b" data-v="REVIEW">Review</button>
+            <button type="button" class="seg-b is-on" data-v="" aria-pressed="true">All</button>
+            <button type="button" class="seg-b" data-v="ALLOW" aria-pressed="false">Allow</button>
+            <button type="button" class="seg-b" data-v="BLOCK" aria-pressed="false">Block</button>
+            <button type="button" class="seg-b" data-v="REVIEW" aria-pressed="false">Review</button>
           </div>
+          <div class="seg" id="proc-filter" role="group" aria-label="Filter by processor"></div>
           <input type="search" id="quick" class="search" placeholder="Search ledger" aria-label="Search ledger" spellcheck="false" />
-          <button type="button" class="btn btn-ghost" id="btn-csv">Export CSV</button>
+          <span class="tools-gap"></span>
+          <button type="button" class="btn btn-ghost" id="btn-csv" title="Exports the rows and columns of the table as filtered right now.">Export view (CSV)</button>
+          <a class="btn btn-ghost" id="link-server-csv" href="/api/ledger?format=csv&amp;limit=5000" download="sentra-ledger.csv" title="The whole ledger, generated by the server: formula-safe, with the hash columns an auditor needs to re-verify the chain.">Export full ledger (server CSV)</a>
         </div>
       </div>
       <div class="ledger-body">
@@ -130,7 +158,7 @@
     </section>
 
     <footer class="foot">
-      <span>PayPal sandbox only. No real money moves.</span>
+      <span>Sandbox and test mode only. No real money moves.</span>
       <span id="foot-state"></span>
     </footer>
   </main>
