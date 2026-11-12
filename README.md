@@ -1,5 +1,7 @@
 # Sentra
 
+**[Watch the 2:15 PayPal AI Hackathon demo on YouTube](https://youtu.be/4RoAkJbKLI4)**
+
 [![ci](https://github.com/4us9/sentra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/4us9/sentra/actions/workflows/ci.yml?query=branch%3Amain)
 
 **The firewall between AI agents and the money.** Every payment an agent attempts

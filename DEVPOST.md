@@ -1,10 +1,5 @@
 # Devpost submission text
 
-Paste-ready. Replace the two placeholders (hosted URL, video URL). Re-check the
-two factual claims marked [verify] against their sources before submitting.
-
----
-
 ## Sentra — the firewall between AI agents and the money
 
 **Tagline:** Every payment an AI agent attempts is inspected before it executes.
@@ -12,15 +7,7 @@ Good ones go through to PayPal. Hijacked ones never leave.
 
 ### Inspiration
 
-The payment failures that worry us are not break-ins. They are systems doing
-exactly what their code says, when the code allows something it should not.
-In early 2026 PayPal disclosed that a code change in its Working Capital loan
-application had exposed customer data for about six months before it was
-noticed [verify]. In 2025 a set of CVEs in a PayPal checkout plugin let a cart
-be changed after approval and an amount go unverified [verify]. No malware, no
-alarm: the normal flow, used wrongly.
-
-AI agents make this sharper. An agent that can pay will read web pages, emails
+An agent that can pay will read web pages, emails
 and tool output, and any of them can tell it what to do. To the processor a
 hijacked agent is indistinguishable from a healthy one: valid credentials,
 valid API call. Standards like AP2 describe what a user *authorised*, as a
@@ -74,9 +61,8 @@ or craft your own payment and try to get it through.
 - **Operations:** queryable ledger with CSV export, Prometheus metrics (block
   rate, spend by processor, p95 decision latency), per-agent rate limits,
   redacting logs.
-- Node.js, Express, zero runtime dependencies beyond Express and the Anthropic
-  SDK. Dashboard is vanilla JS with **AG Grid** for the ledger. Deployable on
-  **Render** from the included blueprint.
+- A TypeScript workspace runs the Fastify service and Next.js operator console.
+  The console uses TanStack Table for the ledger. A Render blueprint hosts the service.
 
 ### Challenges
 
@@ -117,7 +103,7 @@ approvals and webhooks; more rails.
 ### Try it
 
 - Live: https://sentra-x8zr.onrender.com
-- Video: `<YOUTUBE_URL>`
+- [Watch the 2:15 demo](https://youtu.be/4RoAkJbKLI4). The recording uses simulated payments and the fallback intent check.
 - Code: https://github.com/4us9/sentra (MIT). `corepack enable && pnpm install && pnpm start`, then
   `pnpm demo`. Runs fully offline in simulated mode with no credentials.
 
