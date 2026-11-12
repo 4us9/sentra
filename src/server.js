@@ -3,7 +3,7 @@ import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
 import * as store from './store.js';
-import * as paypal from './paypal.js';
+import { getProcessor, processorStatus } from './processors/index.js';
 import { createMandate, publicMandate } from './mandate.js';
 import { guardPayment, resolveReview, setFrozen, auditStatus, mandateForToken } from './guard.js';
 import { llmConfigured } from './intent.js';
@@ -29,7 +29,8 @@ const sendMandate = (res) => (r) => res.status(r.status).json(r.status === 200 ?
 const fail = (res) => (e) => res.status(500).json({ error: String(e.message || e) });
 const bearer = (req) => (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
 const config = () => ({
-  paypal: paypal.mode(),
+  paypal: getProcessor('paypal').mode(),
+  processors: processorStatus(),
   intent: llmConfigured() ? 'llm' : 'fallback',
   operatorAuth: Boolean(process.env.SENTRA_ADMIN_TOKEN),
 });
@@ -87,6 +88,8 @@ app.use(express.static(path.resolve('public')));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Sentra running on http://localhost:${PORT}`);
-  console.log(`  PayPal: ${paypal.mode() === 'sandbox' ? 'SANDBOX (real sandbox orders)' : 'SIMULATED (no credentials in .env; order ids start with SIM-)'}`);
+  for (const p of processorStatus()) {
+    console.log(`  ${p.label}: ${p.mode === 'simulated' ? 'SIMULATED (no credentials; payment ids start with SIM-)' : p.mode.toUpperCase()}${p.default ? '  [default]' : ''}`);
+  }
   console.log(`  Intent: ${llmConfigured() ? 'Claude + signatures' : 'signatures + vocabulary fallback (no ANTHROPIC_API_KEY)'}`);
 });

@@ -29,9 +29,13 @@ export function perTxCap(mandate, req) {
   return { name: 'per_tx_cap', pass, detail: `amount ${req.amount} vs cap ${mandate.perTxCap}` };
 }
 
+// `reserved` is money already promised to payments that are in flight (approved, not
+// yet settled). Counting it here is what closes the double-spend race.
 export function budget(mandate, req) {
-  const pass = toCents(mandate.spent) + toCents(req.amount) <= toCents(mandate.budgetTotal);
-  return { name: 'budget', pass, detail: `spent ${mandate.spent} + ${req.amount} vs total ${mandate.budgetTotal}` };
+  const reserved = mandate.reserved || 0;
+  const pass = toCents(mandate.spent) + toCents(reserved) + toCents(req.amount) <= toCents(mandate.budgetTotal);
+  const held = reserved ? ` + ${reserved} reserved` : '';
+  return { name: 'budget', pass, detail: `spent ${mandate.spent}${held} + ${req.amount} vs total ${mandate.budgetTotal}` };
 }
 
 export function recipientAllowlist(mandate, req) {

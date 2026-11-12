@@ -9,6 +9,7 @@
 import crypto from 'crypto';
 import { canonical } from './audit.js';
 import { secret } from './store.js';
+import { isProcessor, defaultProcessorName } from './processors/index.js';
 
 export const DEFAULT_SCOPE = [
   'grocer', 'food', 'produce', 'vegetable', 'fruit', 'meat', 'dairy', 'milk', 'egg',
@@ -16,7 +17,7 @@ export const DEFAULT_SCOPE = [
 ];
 
 const SEALED_FIELDS = [
-  'id', 'user', 'description', 'scope', 'currency', 'budgetTotal', 'perTxCap',
+  'id', 'user', 'description', 'scope', 'processor', 'currency', 'budgetTotal', 'perTxCap',
   'allowedRecipients', 'velocityLimit', 'breaker', 'outOfScope', 'expiresAt', 'tokenHash', 'createdAt',
 ];
 
@@ -47,6 +48,8 @@ export function createMandate(partial = {}, now = Date.now()) {
   if (!Array.isArray(recipients) || recipients.length === 0 || recipients.some((r) => typeof r !== 'string')) {
     throw new Error('allowedRecipients must be a non-empty list of recipient ids');
   }
+  const processor = String(partial.processor || defaultProcessorName()).toLowerCase();
+  if (!isProcessor(processor)) throw new Error(`unknown processor "${processor}"`);
   const budgetTotal = posNumber(partial.budgetTotal, 300, 'budgetTotal');
   const perTxCap = posNumber(partial.perTxCap, 75, 'perTxCap');
   const vl = partial.velocityLimit || {};
@@ -57,6 +60,8 @@ export function createMandate(partial = {}, now = Date.now()) {
     description: String(partial.description
       || 'Grocery run. Buy groceries from known merchants only. No transfers, no gift cards.').slice(0, 400),
     scope: Array.isArray(partial.scope) && partial.scope.length ? partial.scope.map(String) : DEFAULT_SCOPE,
+    // Which rail executes an ALLOW. Sealed, so an agent cannot reroute its own payments.
+    processor,
     currency: String(partial.currency || 'USD').toUpperCase(),
     budgetTotal,
     perTxCap,

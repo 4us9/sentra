@@ -70,7 +70,8 @@ async function runTool(name, args = {}) {
     const why = (d.reasons || []).filter((r) => ['FAIL', 'FLAG', 'high', 'med', 'error'].includes(r.result));
     return {
       verdict: d.verdict,
-      paypalOrderId: d.paypalOrderId,
+      processor: d.processor,
+      paymentId: d.paymentId,
       decisionId: d.id,
       reasons: why.map((r) => `${r.check}: ${r.detail}`),
       note: d.verdict === 'ALLOW' ? 'Approved by the firewall and submitted to PayPal.'

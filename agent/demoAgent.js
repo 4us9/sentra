@@ -22,7 +22,7 @@ async function post(path, body, headers = {}) {
 function line(label, d) {
   const hit = (d.reasons || []).find((r) => ['FAIL', 'FLAG', 'high', 'med', 'error'].includes(r.result));
   const why = hit ? `${hit.check}: ${hit.detail}` : 'within mandate';
-  const order = d.paypalOrderId ? `  order=${d.paypalOrderId}` : '';
+  const order = d.paymentId ? `  ${d.processor}=${d.paymentId}` : '';
   const frozen = (d.effects || []).includes('mandate_frozen') ? '   << CIRCUIT BREAKER: mandate frozen' : '';
   console.log(`  ${label.padEnd(30)} ${String(d.verdict).padEnd(6)} ${why}${order}${frozen}`);
 }
