@@ -23,7 +23,7 @@ const { createMandate, sealValid } = await import('../src/mandate.js');
 const { signatureScan, parseVerdict, assessIntent } = await import('../src/intent.js');
 const { chainEntry, verifyChain, GENESIS } = await import('../src/audit.js');
 const store = await import('../src/store.js');
-const { guardPayment, resolveReview, setFrozen, auditStatus, reservedTotal } = await import('../src/guard.js');
+const { guardPayment, resolveReview, setFrozen, auditStatus, reservedTotal, resetGuardState } = await import('../src/guard.js');
 const { minorUnits } = await import('../src/processors/stripe.js');
 const { redactText, scrubSecrets } = await import('../src/log.js');
 
@@ -437,6 +437,40 @@ test('store: mandates, seals, tokens and the ledger survive a restart', async ()
   assert.equal(reloaded.decisionsFor(id).length, 1);
   assert.equal(reloaded.mandateByTokenHash(onDisk.mandates[id].tokenHash).id, id);
   assert.equal(sealValid(reloaded.getMandate(id)), true);
+});
+test('idempotency: a joined request that failed is not labelled as a replay', async () => {
+  store.reset();
+  const { token } = issue({ ...wide });
+  const boom = { name: 'fake', label: 'Fake', mode: () => 'simulated', createPayment: async () => { await sleep(20); throw new Error('down'); } };
+  const [a, b] = await Promise.all([1, 2].map(() => guardPayment(token, { ...ok, idempotencyKey: 'k9' }, { semantic: low, processor: boom })));
+  assert.equal(a.body.verdict, 'ERROR');
+  assert.equal(b.body.id, a.body.id);
+  assert.equal(b.body.replayed, true);                  // same recorded decision, honestly labelled
+  assert.equal(b.status, 200);
+});
+test('store: replacing a mandate invalidates its old token', () => {
+  store.reset();
+  const a = createMandate({ id: 'same' });
+  store.saveMandate(a.mandate);
+  const b = createMandate({ id: 'same', budgetTotal: 5 });
+  store.saveMandate(b.mandate);
+  assert.equal(store.mandateByTokenHash(a.mandate.tokenHash), null);
+  assert.equal(store.mandateByTokenHash(b.mandate.tokenHash).budgetTotal, 5);
+});
+test('reset: a demo reset while a payment is at the processor does not crash or lose the record', async () => {
+  store.reset();
+  const { token } = issue({ ...wide });
+  const proc = fakeProcessor({ delay: 40 });
+  const inFlight = guardPayment(token, ok, { semantic: low, processor: proc });
+  await sleep(15);
+  store.reset(); resetGuardState();
+  const r = await inFlight;
+  assert.equal(r.status, 200);
+  assert.equal(r.body.verdict, 'ERROR');
+  assert.equal(r.body.paymentId, 'FAKE-1');
+  assert.equal(r.body.decidedBy.check, 'mandate_missing');
+  assert.equal(store.listDecisions().length, 1);        // the executed payment is on the ledger
+  assert.equal(auditStatus().ok, true);
 });
 test('review: two concurrent approvals of one held payment execute it once', async () => {
   store.reset();

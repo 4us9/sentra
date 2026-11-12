@@ -78,6 +78,19 @@ test('policy: mandate issued from a policy carries its limits, name and expiry',
   assert.equal((await post('/api/mandates', { policy: 'grocery-run', processor: 'venmo' })).status, 400);
 });
 
+test('policy: limits and ids cannot be set per mandate; an existing mandate cannot be replaced', async () => {
+  const first = await issue({ policy: 'grocery-run' });
+  const hijack = await post('/api/mandates', { policy: 'grocery-run', id: first.mandate.id, budgetTotal: 1e9 });
+  assert.equal(hijack.status, 400);
+  assert.match(hijack.body.error, /not settable per mandate: id, budgetTotal/);
+  const still = await new Sentra({ url: base, agentToken: first.agentToken }).mandate();
+  assert.equal(still.id, first.mandate.id);
+  assert.equal(still.budgetTotal, 300);
+  const named = await issue({ policy: 'grocery-run', user: 'alice' });
+  assert.equal(named.mandate.user, 'alice');
+  assert.notEqual(named.mandate.id, first.mandate.id);
+});
+
 // ---------- SDK over real HTTP ----------
 test('sdk: guard, guardOrThrow, mandate, protect', async () => {
   const { mandate, agentToken } = await issue({ policy: 'grocery-run' });
