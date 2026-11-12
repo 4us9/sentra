@@ -6,7 +6,7 @@ services:
     runtime: node
     plan: free
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
-    startCommand: pnpm start:render
+    startCommand: node scripts/start-render.mjs
     healthCheckPath: /sentra-api/health
     envVars:
       - key: NODE_VERSION
