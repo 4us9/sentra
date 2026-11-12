@@ -45,11 +45,30 @@ Known-good tags: `submission-candidate-v1`, `submission-candidate-v2` (see the e
   check, live keys refused) has only run in simulated mode. Needs a `sk_test_`
   key: NEEDS.md step 5.
 - **Render deploy.** `render.yaml` is written and unexercised. NEEDS.md step 1.
-- **Dashboard paths not clicked in a browser:** see the dashboard entry below.
+- **Some dashboard paths:** see the Dashboard section.
 
-## Dashboard
-See the "Dashboard" section at the end of this file for what was and was not
-checked in a browser after the multi-processor upgrade.
+## Dashboard (`public/`, AG Grid Community 33.3.2 with SRI)
+Policy picker and processor toggle, per-rail and intent chips, metrics strip from
+`/api/metrics`, Attack Lab with the intent reason on the card, review queue, kill
+switch / reinstate, ledger with processor filter, check trace and two CSV exports.
+
+- **Checked live by the main agent at 1440px (PayPal sandbox + Claude):** chips
+  (PayPal SANDBOX, Stripe SIMULATED, External, Intent Claude with model name),
+  issuing a PayPal mandate, groceries (real order ids in the ledger), gift card
+  (signature), off-mandate (REVIEW with Claude's sentence under "Only the AI layer
+  caught this"), review queue, ledger rows, no console errors.
+- **Checked by the dashboard sub-agent in a browser, simulated mode:** all eight
+  scenarios on PayPal and Stripe, External mandates, approve / deny, breaker and
+  reinstate, processor + verdict filters, row detail, both CSV exports
+  (formula-safe), 429 handling, an HTML/script payload rendering as inert text,
+  layouts at 1440 / 1280 / 900px.
+- **Not checked in a browser:** Reset demo (the test pane suppresses `confirm()`),
+  the operator-token prompt, the tampered-ledger chip, the ERROR verdict, Stripe
+  in real test mode, the reserved-in-flight bar from a real in-flight payment,
+  actual file downloads, widths under 900px.
+- Rough edges: at 1280px the header wraps to two rows; with the detail panel open
+  at 1440px the grid scrolls horizontally; the Attack Lab scenarios are
+  grocery-specific, so on the saas-procurement policy use the craft form.
 
 ## Needs the human (NEEDS.md)
 1. Render deploy and the hosted URL in README / DEVPOST.md.
