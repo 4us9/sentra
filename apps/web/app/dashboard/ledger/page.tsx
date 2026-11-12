@@ -49,6 +49,9 @@ export default function LedgerPage() {
         return isNum(a) ? <span className={cn('font-mono tabular-nums', a < 0 && 'text-block')}>{money(a, d.request.currency)}</span> : <span className="font-mono text-block">{str(a, 40) || '(none)'}</span>;
       },
     },
+    { id: 'mandate', header: 'Mandate ID', accessorFn: d => d.mandateId, cell: c => <code>{c.getValue<string>()}</code> },
+    { id: 'intent', header: 'Agent intent', accessorFn: d => str(d.request?.purpose, 600), cell: c => <span className="block max-w-56 truncate" title={c.getValue<string>()}>{c.getValue<string>()}</span> },
+    { id: 'hash', header: 'Hash', accessorFn: d => d.hash, cell: c => <code title={c.getValue<string>()}>{c.getValue<string>()?.slice(0, 10)}</code> },
     { id: 'recipient', header: 'Recipient', accessorFn: (d) => str(d.request?.recipient, 200), cell: (c) => <span className="block max-w-[200px] truncate font-mono text-[12px]" title={c.getValue<string>()}>{c.getValue<string>() || '-'}</span> },
     { id: 'processor', header: 'Rail', accessorFn: (d) => d.processor, cell: (c) => <ProcessorTag name={c.getValue<string>()} processors={procs} withMode={false} />, filterFn: (r, id, v) => eq(r, id, v as string) },
     { id: 'why', header: 'Decided by', accessorFn: (d) => decidingText(d), cell: (c) => <span className="block max-w-[320px] truncate text-muted" title={c.getValue<string>()}>{c.getValue<string>()}</span>, enableSorting: false },

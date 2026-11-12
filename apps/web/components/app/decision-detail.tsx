@@ -42,6 +42,9 @@ export function DecisionDetail({ d, linkOut }: { d: Decision; linkOut?: boolean 
         <p className="rounded-md border border-line bg-background/50 px-3 py-2 text-[13px] leading-relaxed text-muted">{decidingText(d)}</p>
       ) : null}
 
+      <details className="border border-line p-3"><summary className="cursor-pointer font-medium">Decision JSON</summary>
+        <pre className="mt-2 overflow-auto font-mono text-xs"><code>{JSON.stringify(d, null, 2)}</code></pre>
+      </details>
       <dl>
         <Row k="Amount"><span className="font-mono">{money(rq.amount, rq.currency)}</span></Row>
         <Row k="Recipient"><span className="font-mono">{str(rq.recipient, 200)}</span>

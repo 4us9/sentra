@@ -1,66 +1,54 @@
 @import "tailwindcss";
 
-@theme inline {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-
-  --color-background: #090b0f;
-  --color-surface: #0e1218;
-  --color-surface-2: #131923;
-  --color-foreground: #e6eaf0;
-  --color-muted: #8a94a4;
-  --color-faint: #5b6575;
-  --color-line: #1c2431;
-  --color-line-strong: #2a3446;
-  --color-accent: #9db8ff;
-  --color-accent-fg: #0a0f1a;
-
-  --color-allow: #3ddc97;
-  --color-block: #ff6b78;
-  --color-review: #f5b942;
-  --color-error: #c79bff;
-  --color-info: #7d8aa0;
-  --color-paypal: #3b9bff;
-  --color-stripe: #8c84ff;
-
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+@theme {
+  --font-sans: "Helvetica Neue", Arial, sans-serif;
+  --font-mono: Consolas, Menlo, monospace;
+  --color-background: #fff;
+  --color-surface: #f9f9f9;
+  --color-surface-2: #eee;
+  --color-foreground: #111;
+  --color-muted: #555;
+  --color-faint: #626262;
+  --color-line: #d4d4d4;
+  --color-line-strong: #888;
+  --color-accent: #111;
+  --color-accent-fg: white;
+  --color-allow: #188038;
+  --color-block: #d93025;
+  --color-review: #865300;
+  --color-error: #a02121;
+  --color-info: #555;
+  --color-paypal: #333;
+  --color-stripe: #444;
+  --radius-sm: 0px;
+  --radius-md: 2px;
+  --radius-lg: 0px;
+}
+:root { color-scheme: light; --review-fill: #f29900; --review-ink: black; }
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-background: #0a0a0a; --color-surface: #111; --color-surface-2: #222;
+    --color-foreground: #ededed; --color-muted: #bdbdbd; --color-faint: #a3a3a3;
+    --color-line: #333; --color-line-strong: #777; --color-accent: #ededed;
+    --color-accent-fg: #111; --color-paypal: #ddd; --color-stripe: #ccc;
+    --color-block: #ff9797; --color-allow: #7bd5ac; --color-review: #edca85;
+    --color-error: #ffa0a0; --color-info: #bbb;
+    --review-fill: #854d0e; --review-ink: white;
+  }
+}
+body { background: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans); }
+table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { background: var(--color-surface-2); }
+th, td { border-right: 1px solid var(--color-line); }
+:focus-visible { outline: 2px solid var(--color-foreground); outline-offset: 2px; }
+[class*="shadow-"] { box-shadow: none; }
+[class*="backdrop-blur"] { backdrop-filter: none; background-color: var(--color-background); }
+.verdict-allow { background: #188038; color: white; }
+.verdict-block { background: #d93025; color: white; }
+.verdict-review { background: var(--review-fill); color: var(--review-ink); }
+@media (prefers-color-scheme: dark) {
+  .verdict-allow { background: #065f46; }
+  .verdict-block { background: #991b1b; }
 }
 
-:root { color-scheme: dark; }
-
-html { background: var(--color-background); }
-body {
-  background: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-sans);
-  font-feature-settings: "ss01", "cv11";
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-::selection { background: color-mix(in oklab, var(--color-accent) 35%, transparent); }
-
-.font-mono, code, pre { font-feature-settings: "calt" 0; }
-
-/* Hero / section backdrop: a faint engineering grid that fades out. */
-.bg-grid {
-  background-image:
-    linear-gradient(to right, color-mix(in oklab, var(--color-line) 70%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklab, var(--color-line) 70%, transparent) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
-}
-.glow-accent {
-  background: radial-gradient(60% 60% at 50% 0%, color-mix(in oklab, var(--color-accent) 16%, transparent), transparent 70%);
-}
-
-@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-.animate-pulse-dot { animation: pulse-dot 1.8s ease-in-out infinite; }
-@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.animate-rise { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
-@media (prefers-reduced-motion: reduce) {
-  .animate-pulse-dot, .animate-rise { animation: none; }
-}
-
-:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 3px; }

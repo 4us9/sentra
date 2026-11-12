@@ -16,6 +16,7 @@ import { useSentra } from '@/lib/store';
 import { useToast } from '@/lib/toast';
 import type { PaymentInput, Scenario } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { ATTACKS } from '../../../../../packages/guard/test/corpus/attacks';
 
 // Scenarios whose point is "every number passes, only the intent layer sees it".
 const INTENT_STORY = new Set(['giftcard', 'offscope']);
@@ -75,6 +76,9 @@ export default function Lab() {
   const [running, setRunning] = React.useState<string | null>(null);
   const [craft, setCraft] = React.useState({ amount: '25', recipient: '', purpose: '' });
   const [crafted, setCrafted] = React.useState<Item | null>(null);
+  const [attackIndex, setAttackIndex] = React.useState(0);
+  const [payload, setPayload] = React.useState(JSON.stringify(ATTACKS[0].request, null, 2));
+  const [report, setReport] = React.useState<GuardOutcome | null>(null);
 
   const m = currentMandate;
   const token = React.useMemo(() => (m ? agentTokenFor(m.id) : null), [m, tokenRev]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -148,7 +152,34 @@ export default function Lab() {
         ) : null}
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <section className="mb-5 border border-line" aria-label="Adversarial corpus">
+        <h2 className="border-b border-line bg-surface px-3 py-2 font-semibold">Adversarial corpus · {ATTACKS.length} payloads</h2>
+        <div className="grid md:grid-cols-[2fr_3fr]">
+          <select aria-label="Attack payload" size={9} className="min-w-0 bg-background p-2 text-sm" value={attackIndex} disabled={!!running}
+            onChange={e => { const i = Number(e.target.value); setAttackIndex(i); setPayload(JSON.stringify(ATTACKS[i].request, null, 2)); setReport(null); }}>
+            {ATTACKS.map((a,i) => <option key={i} value={i}>{a.family} / {a.name}</option>)}
+          </select>
+          <div className="space-y-2 border-line p-3 md:border-l">
+            <Textarea aria-label="Request JSON" className="min-h-32 font-mono" disabled={!!running} value={payload} onChange={e => { setPayload(e.target.value); setReport(null); }} />
+            <Button disabled={!token || !!running} onClick={async () => {
+              if (!token) return;
+              setRunning('__corpus'); setReport(null);
+              try { setReport(await guard(token, JSON.parse(payload))); }
+              catch (err) { setReport({kind:'error', message:err instanceof Error ? err.message : 'Request failed'}); }
+              finally { setRunning(null); await refresh(); }
+            }}>Run payload</Button>
+            {report && <div aria-live="polite"><ResultLine it={toItem(report)} />
+              {report.kind === 'decision' && <>
+                {report.decision.verdict === 'ALLOW' && <strong role="alert" className="verdict-block block p-2">CRITICAL — payload allowed</strong>}
+                <table className="w-full text-xs"><tbody>{['schema','rule','anomaly','intent'].map((layer,i) =>
+                  <tr key={layer}><th className="p-1 text-left">L{i} · {layer}</th><td className="p-1">{report.decision.decidedBy?.layer === layer ? report.decision.decidedBy.check : report.decision.reasons.some(r => r.layer === layer) ? 'Evaluated' : 'No result'}</td></tr>
+                )}</tbody></table>
+              </>}
+            </div>}
+          </div>
+        </div>
+      </section>
+      <div className="grid gap-px border border-line bg-line md:grid-cols-2">
         {scenarios.length === 0 ? <p className="text-sm text-muted">No scenarios available.</p> : null}
         {scenarios.map((sc) => {
           const items = results[sc.id];

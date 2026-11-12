@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: { default: 'Sentra: the firewall between AI agents and the money', template: '%s | Sentra' },
   description: 'Sentra inspects every payment an AI agent attempts, on PayPal or Stripe, before it executes, and refuses the hijacked ones. Open source. Sandbox only.',
 };
-export const viewport: Viewport = { themeColor: '#090b0f', colorScheme: 'dark' };
+export const viewport: Viewport = { colorScheme: 'light dark' };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Reading the request headers makes every page dynamic, which is what lets Next

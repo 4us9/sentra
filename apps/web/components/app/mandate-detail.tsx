@@ -49,7 +49,7 @@ export function MandateDetail({ m }: { m: Mandate }) {
           <div className="ml-auto">
             {frozen
               ? <Button size="sm" onClick={toggle} disabled={busy}>Reinstate agent</Button>
-              : <Button size="sm" variant="danger" onClick={toggle} disabled={busy} title="Freeze this mandate now. Every payment from the agent is refused until you reinstate it."><Snowflake /> Kill switch</Button>}
+              : <Button size="lg" variant="danger" className="verdict-block min-h-12" onClick={toggle} disabled={busy} title="Freeze this mandate now. Every payment from the agent is refused until you reinstate it."><Snowflake /> Freeze mandate</Button>}
           </div>
         </div>
 

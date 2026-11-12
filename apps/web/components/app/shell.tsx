@@ -69,7 +69,7 @@ function Gate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!state) return <p className="text-sm text-muted">Loading...</p>;
+  if (!state) return <p className="text-sm text-muted">[ Fetching ledger… ]</p>;
   return <>{children}</>;
 }
 

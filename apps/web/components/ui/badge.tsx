@@ -6,9 +6,9 @@ const badgeVariants = cva('inline-flex items-center gap-1 rounded-sm border px-1
   variants: {
     tone: {
       neutral: 'border-line-strong text-muted',
-      allow: 'border-allow/35 bg-allow/10 text-allow',
-      block: 'border-block/35 bg-block/10 text-block',
-      review: 'border-review/35 bg-review/10 text-review',
+      allow: 'border-transparent verdict-allow',
+      block: 'border-transparent verdict-block',
+      review: 'border-transparent verdict-review',
       error: 'border-error/35 bg-error/10 text-error',
       info: 'border-info/30 bg-info/10 text-info',
       accent: 'border-accent/35 bg-accent/10 text-accent',
