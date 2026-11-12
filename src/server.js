@@ -33,9 +33,19 @@ app.use((req, res, next) => {
   next();
 });
 
+/**
+ * @typedef {import('express').Request} Request
+ * @typedef {import('express').Response} Response
+ * @typedef {import('express').NextFunction} NextFunction
+ */
+
+/** @param {Response} res @returns {(r: { status: number, body: unknown }) => void} */
 const send = (res) => (r) => res.status(r.status).json(r.body);
+/** @param {Response} res @returns {(r: import('./types.js').FreezeResponse) => void} */
 const sendMandate = (res) => (r) => res.status(r.status).json(r.status === 200 ? publicMandate(r.body) : r.body);
-const fail = (res) => (e) => { console.error('[server]', e?.message || e); res.status(500).json({ error: 'internal error' }); };
+/** @param {Response} res @returns {(e: unknown) => void} */
+const fail = (res) => (e) => { console.error('[server]', /** @type {{ message?: unknown } | null | undefined} */ (e)?.message || e); res.status(500).json({ error: 'internal error' }); };
+/** @param {Request} req */
 const bearer = (req) => (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
 const config = () => ({
   paypal: getProcessor('paypal').mode(),
@@ -52,6 +62,7 @@ const metrics = () => {
 };
 
 // Operator endpoints. Open in demo mode; set SENTRA_ADMIN_TOKEN to require it.
+/** @param {Request} req @param {Response} res @param {NextFunction} next */
 function operator(req, res, next) {
   const want = process.env.SENTRA_ADMIN_TOKEN;
   if (!want) return next();
@@ -110,20 +121,20 @@ app.post('/api/mandates', opLimit, operator, async (req, res) => {
     store.saveMandate(mandate);
     await recordIssued(mandate);                                  // issuance is on the ledger too
     res.json({ mandate: publicMandate(mandate), agentToken });   // token is shown once
-  } catch (e) { res.status(400).json({ error: String(e.message || e) }); }
+  } catch (e) { res.status(400).json({ error: String(/** @type {{ message?: unknown }} */ (e).message || e) }); }
 });
-app.post('/api/mandates/:id/freeze', opLimit, operator, (req, res) => setFrozen(req.params.id, true).then(sendMandate(res), fail(res)));
-app.post('/api/mandates/:id/reinstate', opLimit, operator, (req, res) => setFrozen(req.params.id, false).then(sendMandate(res), fail(res)));
-app.post('/api/reviews/:id/:action', opLimit, operator, (req, res) => resolveReview(req.params.id, req.params.action).then(send(res), fail(res)));
+app.post('/api/mandates/:id/freeze', opLimit, operator, (req, res) => setFrozen(/** @type {string} */ (req.params.id), true).then(sendMandate(res), fail(res)));
+app.post('/api/mandates/:id/reinstate', opLimit, operator, (req, res) => setFrozen(/** @type {string} */ (req.params.id), false).then(sendMandate(res), fail(res)));
+app.post('/api/reviews/:id/:action', opLimit, operator, (req, res) => resolveReview(/** @type {string} */ (req.params.id), /** @type {string} */ (req.params.action)).then(send(res), fail(res)));
 app.post('/api/demo/reset', opLimit, operator, (req, res) => { store.reset(); res.json({ ok: true }); });
 
 app.use(express.static(path.resolve('public')));
 
 // Malformed JSON and oversized bodies get a clean 400, never a stack trace.
-app.use((err, req, res, next) => {
+app.use(/** @type {import('express').ErrorRequestHandler} */ ((err, req, res, next) => {
   if (res.headersSent) return next(err);
   res.status(err.status || 400).json({ error: err.type === 'entity.too.large' ? 'request too large' : 'malformed request' });
-});
+}));
 
 export { app };
 

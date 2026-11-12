@@ -11,13 +11,19 @@ const API = 'https://api.stripe.com/v1';
 const ZERO_DECIMAL = new Set(['BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF']);
 
 const key = () => process.env.STRIPE_SECRET_KEY || '';
+/** @param {string} k */
 const isTestKey = (k) => /^(sk|rk)_test_/.test(k);
 
 if (key() && !isTestKey(key())) {
   throw new Error('Refusing to start: STRIPE_SECRET_KEY must be a test-mode key (sk_test_...)');
 }
 
-/** Amount in Stripe's smallest unit for the currency. */
+/**
+ * Amount in Stripe's smallest unit for the currency.
+ * @param {number | string} amount
+ * @param {string} currency
+ * @returns {number}
+ */
 export function minorUnits(amount, currency) {
   if (ZERO_DECIMAL.has(currency)) {
     if (!Number.isInteger(Number(amount))) throw new Error(`${currency} has no minor unit; amount must be whole`);

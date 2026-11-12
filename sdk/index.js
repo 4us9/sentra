@@ -42,6 +42,13 @@ export class Sentra {
     this._fetch = fetchImpl || globalThis.fetch.bind(globalThis);
   }
 
+  /**
+   * The parsed JSON answer from Sentra; the public methods give it its type.
+   * @param {string} method
+   * @param {string} path
+   * @param {unknown} [body]
+   * @returns {Promise<any>}
+   */
   async _call(method, path, body) {
     const r = await this._fetch(this.url + path, {
       method,
@@ -74,7 +81,10 @@ export class Sentra {
     return decision;
   }
 
-  /** What this agent is allowed to do: budget, cap, recipients, status. */
+  /**
+   * What this agent is allowed to do: budget, cap, recipients, status.
+   * @returns {Promise<import('./index.js').Mandate>}
+   */
   mandate() {
     return this._call('GET', '/guard/mandate');
   }
@@ -86,7 +96,7 @@ export class Sentra {
    * @param {(payment: import('./index.js').PaymentRequest, decision: import('./index.js').Decision) => Promise<T> | T} fn
    */
   protect(fn) {
-    return async (payment) => fn(payment, await this.guardOrThrow(payment));
+    return async (/** @type {import('./index.js').PaymentRequest} */ payment) => fn(payment, await this.guardOrThrow(payment));
   }
 }
 

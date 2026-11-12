@@ -6,12 +6,20 @@ const AMOUNT = /^\d{1,9}(\.\d{1,2})?$/;
 const RECIPIENT = /^[A-Za-z0-9_.@:+-]{1,128}$/;
 const CURRENCY = /^[A-Z]{3}$/;
 
+/** @param {number | string} n */
 export const toCents = (n) => Math.round(Number(n) * 100);
 
+/**
+ * @param {import('../types.js').PaymentRequestRaw} raw
+ * @param {Pick<import('../types.js').Mandate, 'currency'>} mandate
+ * @returns {import('../types.js').ValidationResult}
+ */
 export function validateRequest(raw, mandate) {
+  /** @type {import('../types.js').SchemaError[]} */
   const errors = [];
-  const r = raw && typeof raw === 'object' ? raw : {};
+  const r = /** @type {Record<string, unknown>} */ (raw && typeof raw === 'object' ? raw : {});
 
+  /** @type {number | null} */
   let amount = null;
   const a = r.amount;
   const asText = typeof a === 'number' ? String(a) : typeof a === 'string' ? a.trim() : null;
@@ -38,11 +46,14 @@ export function validateRequest(raw, mandate) {
     });
   }
 
-  let purpose = r.purpose === undefined || r.purpose === null ? '' : r.purpose;
+  // Type note: asserted as string for the checker only. It is not one yet; the typeof
+  // check on the next line is what makes it so (TS cannot follow that reassignment).
+  let purpose = /** @type {string} */ (r.purpose === undefined || r.purpose === null ? '' : r.purpose);
   if (typeof purpose !== 'string') { errors.push({ check: 'purpose_format', detail: 'purpose must be text' }); purpose = ''; }
   if (purpose.length > 500) errors.push({ check: 'purpose_format', detail: 'purpose longer than 500 chars' });
   purpose = purpose.replace(/[\x00-\x1F\x7F]/g, ' ').slice(0, 500);
 
+  /** @type {string | null} */
   let idempotencyKey = null;
   if (r.idempotencyKey !== undefined && r.idempotencyKey !== null) {
     if (typeof r.idempotencyKey !== 'string' || !/^[\w.:-]{1,100}$/.test(r.idempotencyKey)) {

@@ -6,6 +6,7 @@
 // folds compatibility forms; hidden characters, and any single word that mixes
 // alphabets, are themselves treated as hostile.
 
+/** @param {string[]} parts */
 const any = (parts) => new RegExp(parts.join('|'), 'i');
 
 // Language aimed at a reviewer or a model, pressure, secrecy, or claims of prior

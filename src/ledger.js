@@ -17,9 +17,15 @@
  * @property {string|number} [offset]
  */
 
+/**
+ * @typedef {import('./types.js').Decision} Decision
+ * @typedef {import('./types.js').Metrics} Metrics
+ */
+
+/** @param {unknown} v */
 const list = (v) => String(v || '').split(',').map((s) => s.trim()).filter(Boolean);
 
-/** @param {any[]} decisions @param {LedgerQuery} query */
+/** @param {Decision[]} decisions @param {LedgerQuery} query */
 export function queryLedger(decisions, query = {}) {
   const verdicts = list(query.verdict).map((s) => s.toUpperCase());
   const kinds = list(query.kind);
@@ -47,7 +53,7 @@ export function queryLedger(decisions, query = {}) {
   return { total: rows.length, offset, limit, entries: rows.slice(offset, offset + limit) };
 }
 
-/** @type {Array<[string, (d: any) => any]>} */
+/** @type {Array<[string, (d: Decision) => unknown]>} */
 const COLUMNS = [
   ['seq', (d) => d.seq], ['time', (d) => d.createdAt], ['decision_id', (d) => d.id], ['kind', (d) => d.kind],
   ['mandate', (d) => d.mandateId], ['processor', (d) => d.processor ?? ''], ['verdict', (d) => d.verdict],
@@ -64,31 +70,44 @@ const COLUMNS = [
 // The ledger holds attacker-supplied text. A cell that starts with = + - @ (or a tab /
 // CR) would be run as a formula when an auditor opens the export in a spreadsheet,
 // so those are neutralised with a leading apostrophe.
+/** @param {unknown} value */
 export function csvCell(value) {
   let s = String(value ?? '');
   if (typeof value !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
+/** @param {Decision[]} entries */
 export function toCsv(entries) {
   return [COLUMNS.map(([h]) => h).join(','), ...entries.map((d) => COLUMNS.map(([, f]) => csvCell(f(d))).join(','))].join('\r\n') + '\r\n';
 }
 
+/** @param {number[]} sorted @param {number} p */
 function percentile(sorted, p) {
   if (!sorted.length) return 0;
   return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
 }
 
-/** Aggregate metrics over the ledger and current mandates. */
+/**
+ * Aggregate metrics over the ledger and current mandates.
+ * @param {Decision[]} decisions
+ * @param {Array<Pick<import('./types.js').Mandate, 'status'>>} mandates
+ * @param {{ reserved?: number }} [opts]
+ * @returns {Metrics}
+ */
 export function computeMetrics(decisions, mandates, { reserved = 0 } = {}) {
   const payments = decisions.filter((d) => d.kind !== 'event');
+  /** @type {Metrics['byVerdict']} */
   const byVerdict = { ALLOW: 0, BLOCK: 0, REVIEW: 0, ERROR: 0 };
+  /** @type {Record<string, number>} */
   const byLayer = {};
+  /** @type {Record<string, number>} */
   const byCheck = {};
+  /** @type {Record<string, number>} */
   const spend = {};
   const blockedValue = { total: 0 };
   for (const d of payments) {
-    if (d.verdict in byVerdict) byVerdict[d.verdict]++;
+    if (d.verdict in byVerdict) byVerdict[/** @type {keyof Metrics['byVerdict']} */ (d.verdict)]++;
     if (d.verdict !== 'ALLOW' && d.decidedBy) {
       byLayer[d.decidedBy.layer] = (byLayer[d.decidedBy.layer] || 0) + 1;
       byCheck[d.decidedBy.check] = (byCheck[d.decidedBy.check] || 0) + 1;
@@ -97,7 +116,7 @@ export function computeMetrics(decisions, mandates, { reserved = 0 } = {}) {
     if (d.verdict === 'ALLOW') spend[d.processor || 'unknown'] = Math.round(((spend[d.processor || 'unknown'] || 0) + amt) * 100) / 100;
     if (d.verdict === 'BLOCK' && d.kind === 'payment') blockedValue.total = Math.round((blockedValue.total + amt) * 100) / 100;
   }
-  const lat = payments.filter((d) => d.kind === 'payment' && Number.isFinite(d.latencyMs)).map((d) => d.latencyMs).sort((a, b) => a - b);
+  const lat = payments.filter((d) => d.kind === 'payment' && Number.isFinite(d.latencyMs)).map((d) => /** @type {number} */ (d.latencyMs)).sort((a, b) => a - b);
   const decided = byVerdict.ALLOW + byVerdict.BLOCK + byVerdict.REVIEW + byVerdict.ERROR;
   const resolved = new Set(decisions.filter((d) => d.resolves).map((d) => d.resolves));
   return {
@@ -116,9 +135,15 @@ export function computeMetrics(decisions, mandates, { reserved = 0 } = {}) {
   };
 }
 
-/** Prometheus text exposition format. */
+/**
+ * Prometheus text exposition format.
+ * @param {Metrics} m
+ * @param {{ length: number, ok: boolean }} audit
+ */
 export function toPrometheus(m, audit) {
+  /** @type {string[]} */
   const out = [];
+  /** @param {string} name @param {string} help @param {string} type @param {Array<[Record<string, string>, number]>} rows */
   const metric = (name, help, type, rows) => {
     out.push(`# HELP ${name} ${help}`, `# TYPE ${name} ${type}`);
     for (const [labels, value] of rows) {

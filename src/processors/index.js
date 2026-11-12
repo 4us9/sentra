@@ -87,7 +87,8 @@ function withSimulation(p) {
 const WRAPPED = Object.fromEntries(Object.entries(REGISTRY).map(([k, p]) => [k, withSimulation(p)]));
 
 export const processorNames = () => Object.keys(WRAPPED);
-export const isProcessor = (name) => Object.prototype.hasOwnProperty.call(WRAPPED, name);
+/** @param {unknown} name */
+export const isProcessor = (name) => Object.prototype.hasOwnProperty.call(WRAPPED, /** @type {PropertyKey} */ (name));
 
 export function defaultProcessorName() {
   const want = String(process.env.SENTRA_PROCESSOR || 'paypal').toLowerCase();

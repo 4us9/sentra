@@ -16,8 +16,14 @@ import { SCENARIOS, POISONED_LISTING } from './scenarios.js';
 
 const BASE = (process.env.GUARD_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/+$/, '');
 const RAILS = (process.env.DEMO_PROCESSORS || 'paypal,stripe').split(',').map((s) => s.trim()).filter(Boolean);
+/** @type {Record<string, string>} */
 const admin = process.env.SENTRA_ADMIN_TOKEN ? { 'x-sentra-admin': process.env.SENTRA_ADMIN_TOKEN } : {};
 
+/**
+ * @param {string} path
+ * @param {unknown} [body]
+ * @returns {Promise<any>} the server's JSON answer
+ */
 async function operator(path, body) {
   const r = await fetch(BASE + path, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...admin }, body: JSON.stringify(body || {}),
@@ -26,8 +32,10 @@ async function operator(path, body) {
   if (!r.ok) throw new Error(`${path} -> ${r.status} ${j.error || ''}`);
   return j;
 }
+/** @returns {Promise<any>} the dashboard state, as served by GET /api/state */
 const state = async () => (await fetch(BASE + '/api/state')).json();
 
+/** @param {string} label @param {import('../sdk/index.js').Decision} d */
 function line(label, d) {
   const hit = (d.reasons || []).find((r) => ['FAIL', 'FLAG', 'high', 'med', 'error'].includes(r.result));
   const why = hit ? `${hit.check}: ${hit.detail}` : 'within mandate';
@@ -36,6 +44,7 @@ function line(label, d) {
   console.log(`  ${label.padEnd(30)} ${String(d.verdict).padEnd(6)} ${why}${paid}${frozen}`);
 }
 
+/** @param {string} processor @returns {Promise<string[]>} */
 async function runRail(processor) {
   // The human issues the mandate (from the policy file); the agent is handed a token scoped to it.
   const { mandate: m, agentToken } = await operator('/api/mandates', { policy: 'grocery-run', processor });
@@ -47,13 +56,14 @@ async function runRail(processor) {
   const verdicts = [];
   for (const s of SCENARIOS) {
     // If the circuit breaker has frozen the agent, a human has to let it back in.
-    const cur = (await state()).mandates.find((x) => x.id === m.id);
+    const cur = (await state()).mandates.find((/** @type {{ id: string }} */ x) => x.id === m.id);
     if (cur.status === 'frozen') {
       console.log(`\nOPERATOR  mandate is frozen (${cur.frozenReason}). A human reviews and reinstates the agent.`);
       await operator(`/api/mandates/${m.id}/reinstate`);
     }
     console.log(`\n${s.category === 'legit' ? 'LEGIT ' : 'ATTACK'}  ${s.title}  (expect ${s.expect})\n  ${s.blurb}`);
     if (s.id === 'hijack') console.log(POISONED_LISTING.trim().split('\n').map((l) => '    | ' + l).join('\n'));
+    /** @param {{ amount: number, recipient: string }} p */
     const label = (p) => `$${p.amount} -> ${p.recipient}`.slice(0, 30);
     const out = [];
     if (s.concurrent) out.push(...await Promise.all(s.steps.map((p) => sentra.guard(p))));
@@ -62,12 +72,13 @@ async function runRail(processor) {
     verdicts.push(out.map((d) => d.verdict).sort().join(','));
   }
 
-  const mine = (await state()).mandates.find((x) => x.id === m.id);
+  const mine = (await state()).mandates.find((/** @type {{ id: string }} */ x) => x.id === m.id);
   console.log(`\n  ${processor}: spent $${mine.spent.toFixed(2)} of $${mine.budgetTotal} (never over), mandate is ${mine.status}.`);
   return verdicts;
 }
 
 async function main() {
+  /** @type {Record<string, string[]>} */
   const results = {};
   for (const rail of RAILS) results[rail] = await runRail(rail);
 
@@ -78,7 +89,7 @@ async function main() {
     console.log(`Same firewall, any rail: verdicts on ${RAILS.join(' and ')} are ${same ? 'IDENTICAL' : 'DIFFERENT (investigate)'}.`);
   }
   console.log(`Audit ledger: ${s.audit.length} entries, hash chain ${s.audit.ok ? 'intact' : 'BROKEN'}.`);
-  console.log(`Processors: ${s.config.processors.map((p) => `${p.label} ${p.mode}`).join(', ')}. Intent check: ${s.config.intent}.`);
+  console.log(`Processors: ${s.config.processors.map((/** @type {{ label: string, mode: string }} */ p) => `${p.label} ${p.mode}`).join(', ')}. Intent check: ${s.config.intent}.`);
   console.log(`\nOpen ${BASE} to see every decision.\n`);
 }
 

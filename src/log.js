@@ -8,7 +8,11 @@ import crypto from 'crypto';
 
 const enabled = () => process.env.SENTRA_LOG !== 'off' && !process.env.NODE_TEST_CONTEXT;
 
-/** Length + fingerprint, never the text itself. */
+/**
+ * Length + fingerprint, never the text itself.
+ * @param {unknown} text
+ * @returns {{ len: number, sha256_8?: string }}
+ */
 export function redactText(text) {
   const s = String(text ?? '');
   if (!s) return { len: 0 };
@@ -24,13 +28,18 @@ const SECRET_SHAPES = [
   /\bA21AA[A-Za-z0-9_-]{8,}/g,               // PayPal access tokens
 ];
 
-/** Scrub anything shaped like a credential out of a string before it is logged or stored. */
+/**
+ * Scrub anything shaped like a credential out of a string before it is logged or stored.
+ * @param {unknown} text
+ * @returns {string}
+ */
 export function scrubSecrets(text) {
   let s = String(text ?? '');
   for (const re of SECRET_SHAPES) s = s.replace(re, '[redacted]');
   return s;
 }
 
+/** @param {import('./types.js').Decision} d */
 export function logDecision(d) {
   if (!enabled()) return;
   const line = {

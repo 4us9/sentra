@@ -11,6 +11,7 @@ if (BASE !== SANDBOX) {
 
 const configured = () => Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
 
+/** @type {{ tok: string, exp: number } | null} */
 let cached = null;
 async function getToken() {
   if (cached && cached.exp > Date.now()) return cached.tok;
@@ -27,6 +28,13 @@ async function getToken() {
   return cached.tok;
 }
 
+/**
+ * The body is whatever PayPal answered, parsed. It is not trusted: createPayment
+ * re-checks the amount and currency before reporting success.
+ * @param {string} pathname
+ * @param {{ method?: string, headers?: Record<string, string>, body?: string }} [opts]
+ * @returns {Promise<{ ok: boolean, status: number, body: any }>}
+ */
 async function api(pathname, opts = {}) {
   const tok = await getToken();
   const r = await fetch(`${BASE}${pathname}`, {
@@ -40,6 +48,10 @@ async function api(pathname, opts = {}) {
   return { ok: r.ok, status: r.status, body };
 }
 
+/**
+ * @param {string} id
+ * @returns {Promise<any>} the order as PayPal returned it
+ */
 export async function getOrder(id) {
   const res = await api(`/v2/checkout/orders/${encodeURIComponent(id)}`);
   if (!res.ok) throw new Error(`getOrder ${res.status}: ${JSON.stringify(res.body).slice(0, 400)}`);

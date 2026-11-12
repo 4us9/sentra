@@ -30,8 +30,31 @@ import { hashToken } from './mandate.js';
 import { getProcessor } from './processors/index.js';
 import { logDecision, scrubSecrets } from './log.js';
 
+/**
+ * @typedef {import('./types.js').Mandate} Mandate
+ * @typedef {import('./types.js').Decision} Decision
+ * @typedef {import('./types.js').PendingDecision} PendingDecision
+ * @typedef {import('./types.js').DecisionKind} DecisionKind
+ * @typedef {import('./types.js').HistoryEntry} HistoryEntry
+ * @typedef {import('./types.js').Reservation} Reservation
+ * @typedef {import('./types.js').GuardResponse} GuardResponse
+ * @typedef {import('./types.js').FreezeResponse} FreezeResponse
+ * @typedef {import('./types.js').Outcome} Outcome
+ * @typedef {import('./types.js').Reason} Reason
+ * @typedef {import('./types.js').Effect} Effect
+ * @typedef {import('./types.js').PaymentResult} PaymentResult
+ * @typedef {import('./types.js').PaymentProcessor} PaymentProcessor
+ */
+
 // ---- per-mandate lock ----
+/** @type {Map<string, Promise<unknown>>} */
 const locks = new Map();
+/**
+ * @template T
+ * @param {string} key
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
 function withLock(key, fn) {
   const prev = locks.get(key) || Promise.resolve();
   const run = prev.then(fn, fn);
@@ -40,23 +63,32 @@ function withLock(key, fn) {
 }
 
 // ---- in-flight reservations: mandateId -> Map(decisionId -> { amount, at, key }) ----
+/** @type {Map<string, Map<string, Reservation>>} */
 const inflight = new Map();
+/** @type {Map<string, { fingerprint: string, promise: Promise<GuardResponse> }>} */
 const pendingByKey = new Map();          // `${mandateId}:${idempotencyKey}` -> { fingerprint, promise }
+/** @type {GuardResponse} */
 const KEY_REUSED = { status: 409, body: { error: 'idempotencyKey was already used for a different payment' } };
+/** @param {{ amount?: unknown, currency?: unknown, recipient?: unknown, purpose?: unknown } | null | undefined} r */
 const fingerprint = (r) => JSON.stringify([r?.amount, r?.currency, r?.recipient, r?.purpose]);
+/** @param {string} mandateId @returns {Map<string, Reservation>} */
 const reservations = (mandateId) => inflight.get(mandateId) || new Map();
+/** @param {string} mandateId @param {string} decisionId @param {number} amount @param {number} at @param {string | null} key */
 function reserve(mandateId, decisionId, amount, at, key) {
   if (!inflight.has(mandateId)) inflight.set(mandateId, new Map());
-  inflight.get(mandateId).set(decisionId, { amount, at, key });
+  /** @type {Map<string, Reservation>} */ (inflight.get(mandateId)).set(decisionId, { amount, at, key });
 }
+/** @param {string} mandateId @param {string} decisionId */
 function release(mandateId, decisionId) {
   const m = inflight.get(mandateId);
   if (m) { m.delete(decisionId); if (m.size === 0) inflight.delete(mandateId); }
 }
+/** @param {string} mandateId */
 export const reservedTotal = (mandateId) =>
   round2([...reservations(mandateId).values()].reduce((a, r) => a + r.amount, 0));
 
 // Synchronous read-last + write: Node runs it to completion, so the hash chain has one writer.
+/** @param {PendingDecision} entry @returns {Decision} */
 function append(entry) {
   const last = store.lastDecision();
   const sealed = chainEntry({ ...entry, seq: last ? last.seq + 1 : 0 }, last ? last.hash : GENESIS);
@@ -65,9 +97,12 @@ function append(entry) {
   return sealed;
 }
 
+/** @param {number} now */
 const newId = (now) => 'dec_' + now.toString(36) + '_' + crypto.randomBytes(5).toString('hex');
+/** @param {number} n */
 const round2 = (n) => Math.round(n * 100) / 100;
 
+/** @param {string | null | undefined} token @returns {Mandate | null} */
 export function mandateForToken(token) {
   if (!token) return null;
   // Looked up by the SHA-256 of the token: the token itself is never stored or
@@ -75,25 +110,37 @@ export function mandateForToken(token) {
   return store.mandateByTokenHash(hashToken(token));
 }
 
+/** @param {string} mandateId */
 const ledgerHistory = (mandateId) => store.decisionsFor(mandateId).filter((d) => d.kind !== 'event');
 
 // What the rules see: the ledger, plus every in-flight reservation counted as if it
 // had already been allowed (for budget, velocity and drain detection alike).
+/**
+ * @param {string} mandateId
+ * @param {string} [except]
+ * @returns {{ mandate: Mandate, view: Mandate, history: HistoryEntry[] }}
+ */
 function liveView(mandateId, except) {
-  const mandate = store.getMandate(mandateId);
+  const mandate = /** @type {Mandate} */ (store.getMandate(mandateId));
   const held = [...reservations(mandateId).entries()].filter(([id]) => id !== except);
   const reserved = round2(held.reduce((a, [, r]) => a + r.amount, 0));
   const history = [
     ...ledgerHistory(mandateId),
-    ...held.map(([id, r]) => ({ id, mandateId, kind: 'payment', verdict: 'ALLOW', request: { amount: r.amount }, createdAt: new Date(r.at).toISOString() })),
+    ...held.map(/** @returns {HistoryEntry} */ ([id, r]) => ({ id, mandateId, kind: 'payment', verdict: 'ALLOW', request: { amount: r.amount }, createdAt: new Date(r.at).toISOString() })),
   ];
   return { mandate, view: { ...mandate, reserved }, history };
 }
 
+/**
+ * @param {string} id @param {DecisionKind} kind @param {Mandate} mandate @param {number} t0
+ * @returns {PendingDecision}
+ */
 function baseDecision(id, kind, mandate, t0) {
   return {
     id, kind, mandateId: mandate.id, processor: mandate.processor,
-    request: null, verdict: 'BLOCK', reasons: [], riskScore: 0, intentSource: 'skipped', decidedBy: null,
+    // Type note: `request` is null only until the caller fills it in, which every
+    // caller does before the decision is appended or executed.
+    request: /** @type {PendingDecision['request']} */ (/** @type {unknown} */ (null)), verdict: 'BLOCK', reasons: [], riskScore: 0, intentSource: 'skipped', decidedBy: null,
     createdAt: new Date(t0).toISOString(),
     payment: null, paymentId: null,
     resolves: null, effects: [],
@@ -103,8 +150,9 @@ function baseDecision(id, kind, mandate, t0) {
 // Circuit breaker: repeated BLOCKs mean the agent is compromised or malfunctioning.
 // Freeze the whole mandate until a human reinstates it.
 // Only the agent's own blocked attempts count; a human denying a held payment does not.
+/** @param {PendingDecision} decision @param {number} now */
 function tripBreaker(decision, now) {
-  const mandate = store.getMandate(decision.mandateId);
+  const mandate = /** @type {Mandate} */ (store.getMandate(decision.mandateId));
   if (decision.kind !== 'payment' || decision.verdict !== 'BLOCK' || mandate.status === 'frozen') return;
   const since = Math.max(now - mandate.breaker.windowSec * 1000, mandate.breakerResetAt ? new Date(mandate.breakerResetAt).getTime() : 0);
   const blocks = ledgerHistory(mandate.id)
@@ -118,12 +166,21 @@ function tripBreaker(decision, now) {
 }
 
 // Steps 4 and 5: call the processor with no lock held, then commit or release under it.
+/**
+ * Type note: a decision only gets here after its request passed screening, so
+ * `request.amount` is a validated number (the casts below say so to the checker).
+ * @param {PendingDecision} decision
+ * @param {{ processor: PaymentProcessor, now: () => number }} opts
+ * @returns {Promise<Decision>}
+ */
 async function executeAndCommit(decision, { processor, now }) {
+  /** @type {PaymentResult | null} */
   let result = null;
+  /** @type {unknown} */
   let failure = null;
   try {
     result = await processor.createPayment({
-      amount: decision.request.amount,
+      amount: /** @type {number} */ (decision.request.amount),
       currency: decision.request.currency,
       recipient: decision.request.recipient,
       purpose: decision.request.purpose,
@@ -134,15 +191,15 @@ async function executeAndCommit(decision, { processor, now }) {
   return withLock(decision.mandateId, async () => {
     release(decision.mandateId, decision.id);
     if (result) {
-      const mandate = store.getMandate(decision.mandateId);
-      mandate.spent = round2(mandate.spent + decision.request.amount);
+      const mandate = /** @type {Mandate} */ (store.getMandate(decision.mandateId));
+      mandate.spent = round2(mandate.spent + /** @type {number} */ (decision.request.amount));
       store.saveMandate(mandate);
       decision.payment = result;
       decision.paymentId = result.id;
     } else {
       // Fail closed: no payment id, no debit, and the failure is on the record.
       decision.verdict = 'ERROR';
-      decision.reasons.push({ layer: 'processor', check: `${processor.name}_execute`, result: 'error', detail: scrubSecrets(String(failure?.message || failure)).slice(0, 400) });
+      decision.reasons.push({ layer: 'processor', check: `${processor.name}_execute`, result: 'error', detail: scrubSecrets(String(/** @type {{ message?: unknown } | null} */ (failure)?.message || failure)).slice(0, 400) });
       decision.decidedBy = decidedBy(decision.reasons);
     }
     decision.latencyMs = now() - new Date(decision.createdAt).getTime();
@@ -154,7 +211,7 @@ async function executeAndCommit(decision, { processor, now }) {
  * @param {string} token   the agent's mandate-scoped bearer token
  * @param {unknown} body   the untrusted payment request
  * @param {{ now?: () => number, semantic?: import('./intent.js').SemanticFn, processor?: import('./processors/index.js').PaymentProcessor }} [opts]
- * @returns {Promise<{ status: number, body: any }>}
+ * @returns {Promise<GuardResponse>}
  */
 export async function guardPayment(token, body, { now = Date.now, semantic, processor } = {}) {
   const found = mandateForToken(token);
@@ -176,7 +233,7 @@ export async function guardPayment(token, body, { now = Date.now, semantic, proc
         if (fingerprint(prior.request) !== mine) return { done: KEY_REUSED };
         return { done: { status: 200, body: { ...prior, replayed: true } } };
       }
-      const pending = pendingByKey.get(pendingKey);
+      const pending = pendingByKey.get(/** @type {string} */ (pendingKey));
       if (pending) return pending.fingerprint === mine ? { join: pending.promise } : { done: KEY_REUSED };
     }
     const { mandate, view, history } = liveView(mandateId);
@@ -189,7 +246,7 @@ export async function guardPayment(token, body, { now = Date.now, semantic, proc
       decision.latencyMs = now() - t0;
       return { done: { status: 200, body: append(decision) } };
     }
-    reserve(mandateId, decision.id, screening.request.amount, t0, key);
+    reserve(mandateId, decision.id, /** @type {number} */ (screening.request.amount), t0, key);
     return { decision, screening, mandate };
   });
   if (first.done) return first.done;
@@ -206,11 +263,11 @@ export async function guardPayment(token, body, { now = Date.now, semantic, proc
       const stop = await withLock(mandateId, async () => {
         const t = now();
         if (decision.verdict === 'ALLOW') {
-          const fresh = store.getMandate(mandateId);
+          const fresh = /** @type {Mandate} */ (store.getMandate(mandateId));
           const gate = [mandateIntegrity(fresh), mandateActive(fresh)].filter((r) => !r.pass);
           if (gate.length === 0) return null;
           decision.verdict = 'BLOCK';
-          decision.reasons.push(...gate.map((r) => ({ layer: 'rule', check: r.name, result: 'FAIL', detail: `${r.detail} (changed while this payment was in flight)` })));
+          decision.reasons.push(...gate.map(/** @returns {Reason} */ (r) => ({ layer: 'rule', check: r.name, result: 'FAIL', detail: `${r.detail} (changed while this payment was in flight)` })));
           decision.decidedBy = decidedBy(decision.reasons);
         }
         release(mandateId, decision.id);
@@ -238,6 +295,7 @@ export async function guardPayment(token, body, { now = Date.now, semantic, proc
   return rest;
 }
 
+/** @param {Outcome} o */
 const pick = (o) => ({ verdict: o.verdict, reasons: o.reasons, riskScore: o.riskScore, intentSource: o.intentSource, decidedBy: o.decidedBy });
 
 // Human-in-the-loop: approve or deny a held payment. The original REVIEW entry is
@@ -246,7 +304,7 @@ const pick = (o) => ({ verdict: o.verdict, reasons: o.reasons, riskScore: o.risk
  * @param {string} decisionId
  * @param {string} action  'approve' | 'deny'
  * @param {{ now?: () => number, operator?: string, processor?: import('./processors/index.js').PaymentProcessor }} [opts]
- * @returns {Promise<{ status: number, body: any }>}
+ * @returns {Promise<GuardResponse>}
  */
 export async function resolveReview(decisionId, action, { now = Date.now, operator = 'operator', processor } = {}) {
   const held = store.findDecision(decisionId);
@@ -270,7 +328,7 @@ export async function resolveReview(decisionId, action, { now = Date.now, operat
       decision.reasons.push({ layer: 'human', check: 'human_review', result: 'pass', detail: `approved by ${operator}` }, ...re.reasons);
       if (re.ok) {
         decision.verdict = 'ALLOW';
-        reserve(mandate.id, decision.id, held.request.amount, t0, `review:${decisionId}`);
+        reserve(mandate.id, decision.id, /** @type {number} */ (held.request.amount), t0, `review:${decisionId}`);
         return { decision, mandate };
       }
       decision.reasons.push({ layer: 'human', check: 'stale_approval', result: 'FAIL', detail: 'approved, but the payment no longer passes the mandate as it stands now' });
@@ -290,6 +348,10 @@ export async function resolveReview(decisionId, action, { now = Date.now, operat
 
 // Operator actions go on the same ledger as payments, so "who allowed this agent to
 // spend, and when was it frozen or reinstated" is answered by one tamper-evident record.
+/**
+ * @param {Mandate} mandate @param {number} t0 @param {string} check @param {string} detail @param {Effect[]} [effects]
+ * @returns {Decision}
+ */
 function appendEvent(mandate, t0, check, detail, effects = []) {
   const event = baseDecision(newId(t0), 'event', mandate, t0);
   Object.assign(event, {
@@ -301,7 +363,12 @@ function appendEvent(mandate, t0, check, detail, effects = []) {
   return append(event);
 }
 
-/** Record that a mandate was issued. Called once, right after it is first saved. */
+/**
+ * Record that a mandate was issued. Called once, right after it is first saved.
+ * @param {Mandate} mandate
+ * @param {{ now?: () => number, operator?: string }} [opts]
+ * @returns {Promise<Decision>}
+ */
 export function recordIssued(mandate, { now = Date.now, operator = 'operator' } = {}) {
   return withLock(mandate.id, async () => appendEvent(
     mandate, now(), 'mandate_issued',
@@ -309,6 +376,12 @@ export function recordIssued(mandate, { now = Date.now, operator = 'operator' } 
   ));
 }
 
+/**
+ * @param {string} mandateId
+ * @param {boolean} frozen
+ * @param {{ now?: () => number, operator?: string }} [opts]
+ * @returns {Promise<FreezeResponse>}
+ */
 export function setFrozen(mandateId, frozen, { now = Date.now, operator = 'operator' } = {}) {
   return withLock(mandateId, async () => {
     const mandate = store.getMandate(mandateId);

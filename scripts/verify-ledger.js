@@ -17,7 +17,7 @@ process.env.SENTRA_DATA_DIR = process.env.SENTRA_DATA_DIR || path.dirname(file);
 
 let db;
 try { db = JSON.parse(fs.readFileSync(file, 'utf8')); }
-catch (e) { console.error(`verify-ledger: cannot read ${file}: ${e.message}`); process.exit(2); }
+catch (e) { console.error(`verify-ledger: cannot read ${file}: ${/** @type {{ message?: unknown }} */ (e).message}`); process.exit(2); }
 
 const decisions = db.decisions || [];
 const mandates = Object.values(db.mandates || {});

@@ -15,8 +15,10 @@ const KNOWN = new Set(['$schema', 'version', 'name', 'description', 'currency', 
   'allowedRecipients', 'scope', 'outOfScope', 'velocityLimit', 'breaker', 'ttlHours']);
 const RECIPIENT = /^[A-Za-z0-9_.@:+-]{1,128}$/;
 
+/** @param {unknown} n @returns {n is number} */
 const isPos = (n) => typeof n === 'number' && Number.isFinite(n) && n > 0;
-const isPosInt = (n) => Number.isInteger(n) && n > 0;
+/** @param {unknown} n */
+const isPosInt = (n) => Number.isInteger(n) && /** @type {number} */ (n) > 0;
 
 /**
  * @param {unknown} p
@@ -49,7 +51,11 @@ export function validatePolicy(p) {
   return e;
 }
 
-/** Turn a valid policy into the fields createMandate() takes. */
+/**
+ * Turn a valid policy into the fields createMandate() takes.
+ * @param {import('../types.js').Policy} policy
+ * @param {number} [now]
+ */
 export function mandateFromPolicy(policy, now = Date.now()) {
   const { $schema: _s, version: _v, name, ttlHours = 24, ...fields } = policy;
   return { ...fields, policy: name, expiresAt: new Date(now + ttlHours * 3600 * 1000).toISOString() };
@@ -57,15 +63,19 @@ export function mandateFromPolicy(policy, now = Date.now()) {
 
 const dir = () => path.resolve(process.env.SENTRA_POLICY_DIR || 'policies');
 
-/** Load and validate every policy file. Throws on the first invalid one: a bad policy must not start the server. */
+/**
+ * Load and validate every policy file. Throws on the first invalid one: a bad policy must not start the server.
+ * @param {string} [from]
+ * @returns {Record<string, import('../types.js').Policy>}
+ */
 export function loadPolicies(from = dir()) {
-  /** @type {Record<string, any>} */
+  /** @type {Record<string, import('../types.js').Policy>} */
   const out = {};
   if (!fs.existsSync(from)) return out;
   for (const f of fs.readdirSync(from).filter((n) => n.endsWith('.json') && !n.endsWith('.schema.json')).sort()) {
     let parsed;
     try { parsed = JSON.parse(fs.readFileSync(path.join(from, f), 'utf8')); }
-    catch (err) { throw new Error(`policies/${f}: not valid JSON (${err.message})`); }
+    catch (err) { throw new Error(`policies/${f}: not valid JSON (${/** @type {{ message?: unknown }} */ (err).message})`); }
     const problems = validatePolicy(parsed);
     if (problems.length) throw new Error(`policies/${f}: ${problems.join('; ')}`);
     if (out[parsed.name]) throw new Error(`policies/${f}: duplicate policy name "${parsed.name}"`);

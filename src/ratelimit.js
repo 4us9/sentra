@@ -13,7 +13,10 @@ export function createLimiter({ capacity, refillPerSec, now = Date.now }) {
   /** @type {Map<string, { tokens: number, at: number }>} */
   const buckets = new Map();
   return {
-    /** @returns {{ ok: boolean, retryAfterSec: number, remaining: number }} */
+    /**
+     * @param {string} key
+     * @returns {{ ok: boolean, retryAfterSec: number, remaining: number }}
+     */
     take(key) {
       const t = now();
       const b = buckets.get(key) || { tokens: capacity, at: t };
@@ -31,10 +34,15 @@ export function createLimiter({ capacity, refillPerSec, now = Date.now }) {
   };
 }
 
+/** @param {unknown} v @param {number} d */
 const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d);
 const off = () => process.env.SENTRA_RATE_LIMIT === 'off';
 
-/** Express middleware. keyOf(req) picks the bucket. */
+/**
+ * Express middleware. keyOf(req) picks the bucket.
+ * @param {{ capacity: number, refillPerSec: number, keyOf: (req: import('express').Request) => string }} opts
+ * @returns {import('express').RequestHandler}
+ */
 export function rateLimit({ capacity, refillPerSec, keyOf }) {
   const limiter = createLimiter({ capacity, refillPerSec });
   return (req, res, next) => {
@@ -47,7 +55,9 @@ export function rateLimit({ capacity, refillPerSec, keyOf }) {
   };
 }
 
+/** @param {import('express').Request} req */
 const ip = (req) => req.ip || req.socket?.remoteAddress || 'unknown';
+/** @param {import('express').Request} req */
 const bearer = (req) => (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
 
 // Per agent token (hashed, so the token itself is never used as a map key), else per IP.

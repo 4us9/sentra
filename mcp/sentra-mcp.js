@@ -44,6 +44,13 @@ const TOOLS = [
   },
 ];
 
+/**
+ * The parsed JSON answer from Sentra (a decision, a mandate, or an error body).
+ * @param {string} method
+ * @param {string} path
+ * @param {unknown} [body]
+ * @returns {Promise<any>}
+ */
 async function call(method, path, body) {
   const r = await fetch(URL_BASE + path, {
     method,
@@ -56,6 +63,10 @@ async function call(method, path, body) {
   return j;
 }
 
+/**
+ * @param {unknown} name
+ * @param {unknown} [args]  the tool arguments exactly as the model sent them; Sentra validates them
+ */
 async function runTool(name, args = {}) {
   if (name === 'mandate') {
     const m = await call('GET', '/guard/mandate');
@@ -67,13 +78,13 @@ async function runTool(name, args = {}) {
   }
   if (name === 'pay') {
     const d = await call('POST', '/guard', args);
-    const why = (d.reasons || []).filter((r) => ['FAIL', 'FLAG', 'high', 'med', 'error'].includes(r.result));
+    const why = (d.reasons || []).filter((/** @type {{ check: string, result: string, detail: string }} */ r) => ['FAIL', 'FLAG', 'high', 'med', 'error'].includes(r.result));
     return {
       verdict: d.verdict,
       processor: d.processor,
       paymentId: d.paymentId,
       decisionId: d.id,
-      reasons: why.map((r) => `${r.check}: ${r.detail}`),
+      reasons: why.map((/** @type {{ check: string, result: string, detail: string }} */ r) => `${r.check}: ${r.detail}`),
       note: d.verdict === 'ALLOW' ? 'Approved by the firewall and submitted to PayPal.'
         : d.verdict === 'REVIEW' ? 'Held for the user to approve. Do not retry; tell the user it is waiting for them.'
           : 'Refused by the payment firewall. Do not retry or rephrase; report this to the user.',
@@ -82,8 +93,13 @@ async function runTool(name, args = {}) {
   throw new Error(`unknown tool ${name}`);
 }
 
+/** @param {unknown} msg */
 const reply = (msg) => process.stdout.write(JSON.stringify(msg) + '\n');
 
+/**
+ * One JSON-RPC message from the client, parsed but not otherwise trusted.
+ * @param {{ id?: unknown, method?: unknown, params?: any }} msg
+ */
 async function handle(msg) {
   const { id, method, params } = msg;
   if (id === undefined || id === null) return;                 // notification: nothing to answer
@@ -103,12 +119,12 @@ async function handle(msg) {
         const out = await runTool(params?.name, params?.arguments);
         return reply({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }], isError: false } });
       } catch (e) {
-        return reply({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: String(e.message || e) }], isError: true } });
+        return reply({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: String(/** @type {{ message?: unknown }} */ (e).message || e) }], isError: true } });
       }
     }
     reply({ jsonrpc: '2.0', id, error: { code: -32601, message: `method not found: ${method}` } });
   } catch (e) {
-    reply({ jsonrpc: '2.0', id, error: { code: -32603, message: String(e.message || e) } });
+    reply({ jsonrpc: '2.0', id, error: { code: -32603, message: String(/** @type {{ message?: unknown }} */ (e).message || e) } });
   }
 }
 
