@@ -16,7 +16,13 @@ Updated Nov 12 2026, morning (Regina). Deadline 2:00pm Regina.
   exercised over stdio against a running Sentra.
 - **Render blueprint** (`render.yaml`), `.env.example`, README (judges section,
   attack table, API), VIDEO.md shot list, NEEDS.md.
-- Committed locally on `main`.
+- **Dashboard** (`public/`, AG Grid Community 33.3.2 with SRI): Attack Lab, craft
+  your own payment, review queue, kill switch / reinstate, ledger with check trace
+  and CSV export. Checked in a browser at 1440px: scenarios, review queue, ledger,
+  no console or CSP errors; an HTML/script payload in recipient and purpose renders
+  as inert text. Not checked in a browser: operator-token prompt, the tampered-ledger
+  chip, SANDBOX and Claude chips, ERROR verdict, layouts under 1280px.
+- Committed and pushed to `origin/main`.
 
 ## Done, not yet verified
 - **Real PayPal sandbox execution.** The Orders call, `PayPal-Request-Id`

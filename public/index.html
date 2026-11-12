@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sentra - the firewall between AI agents and PayPal</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <h1>Sentra</h1>
+      <span class="tagline">The firewall between AI agents and PayPal</span>
+    </div>
+    <div class="chips" id="chips" aria-live="polite">
+      <span class="chip" id="chip-conn" hidden>Connection lost</span>
+      <span class="chip" id="chip-paypal">PayPal</span>
+      <span class="chip" id="chip-intent">Intent</span>
+      <span class="chip" id="chip-audit">Ledger</span>
+    </div>
+  </header>
+
+  <main class="page">
+
+    <!-- Flow strip: Agent -> Sentra -> PayPal, plus headline numbers -->
+    <section class="flow" aria-label="How a payment flows through Sentra">
+      <div class="pipe">
+        <div class="node node-agent">
+          <span class="node-k">Untrusted</span>
+          <span class="node-t">AI agent</span>
+          <span class="node-s">POST /guard</span>
+        </div>
+        <span class="wire" aria-hidden="true"></span>
+        <div class="node node-sentra">
+          <span class="node-k">Sentra inspects every payment before it executes</span>
+          <div class="layers" id="layers">
+            <div class="layer" data-layer="schema"><span class="layer-n">1</span><span class="layer-t">Schema</span><span class="layer-c" id="lc-schema">0 stopped</span></div>
+            <div class="layer" data-layer="rule"><span class="layer-n">2</span><span class="layer-t">Rules</span><span class="layer-c" id="lc-rule">0 stopped</span></div>
+            <div class="layer" data-layer="anomaly"><span class="layer-n">3</span><span class="layer-t">Anomaly</span><span class="layer-c" id="lc-anomaly">0 stopped</span></div>
+            <div class="layer" data-layer="intent"><span class="layer-n">4</span><span class="layer-t">Intent</span><span class="layer-c" id="lc-intent">0 stopped</span></div>
+          </div>
+        </div>
+        <span class="wire" aria-hidden="true"></span>
+        <div class="node node-paypal">
+          <span class="node-k">Only on ALLOW</span>
+          <span class="node-t">PayPal</span>
+          <span class="node-s" id="flow-paypal-mode">Orders API</span>
+        </div>
+      </div>
+      <dl class="stats">
+        <div class="stat"><dt>Allowed</dt><dd class="v-allow" id="st-allow">0</dd></div>
+        <div class="stat"><dt>Blocked</dt><dd class="v-block" id="st-block">0</dd></div>
+        <div class="stat"><dt>Held for review</dt><dd class="v-review" id="st-review">0</dd></div>
+        <div class="stat"><dt>Protected</dt><dd id="st-protected">$0.00</dd></div>
+        <div class="stat"><dt>Median decision</dt><dd id="st-latency">-</dd></div>
+      </dl>
+    </section>
+
+    <div class="cols">
+
+      <!-- Mandate -->
+      <section class="panel mandate" aria-labelledby="h-mandate">
+        <div class="panel-h">
+          <h2 id="h-mandate">Mandate</h2>
+          <select id="mandate-select" class="select" aria-label="Select mandate" hidden></select>
+        </div>
+        <div id="mandate-body" class="mandate-body"></div>
+        <div class="panel-f">
+          <button type="button" class="btn btn-primary" id="btn-new-mandate">New mandate</button>
+          <button type="button" class="btn btn-ghost" id="btn-reset">Reset demo</button>
+        </div>
+      </section>
+
+      <!-- Attack Lab -->
+      <section class="panel lab" aria-labelledby="h-lab">
+        <div class="panel-h">
+          <h2 id="h-lab">Attack Lab</h2>
+          <span class="panel-sub">Each run goes through <code>POST /guard</code> with this mandate's agent token, exactly as an agent would send it.</span>
+        </div>
+        <p class="lab-hint" id="lab-hint" hidden></p>
+        <div class="cards" id="cards"></div>
+
+        <form class="craft" id="craft" autocomplete="off" novalidate>
+          <div class="craft-h">
+            <h3>Craft your own payment</h3>
+            <span class="panel-sub">Try to get a malicious payment past the firewall. Nothing is sanitised client-side.</span>
+          </div>
+          <div class="craft-row">
+            <label class="f f-amt"><span>Amount</span><input id="craft-amount" name="amount" type="text" inputmode="decimal" placeholder="40.00" spellcheck="false" /></label>
+            <label class="f f-rcp"><span>Recipient</span><input id="craft-recipient" name="recipient" type="text" placeholder="merchant_freshmart" spellcheck="false" list="recipient-list" /></label>
+            <label class="f f-pur"><span>Purpose</span><input id="craft-purpose" name="purpose" type="text" placeholder="what the agent says it is paying for" spellcheck="false" /></label>
+            <button type="submit" class="btn btn-primary" id="craft-send">Send to /guard</button>
+          </div>
+          <datalist id="recipient-list"></datalist>
+          <div class="craft-out" id="craft-out" aria-live="polite"></div>
+        </form>
+      </section>
+    </div>
+
+    <!-- Review queue (hidden when empty) -->
+    <section class="panel review" id="review" aria-labelledby="h-review" hidden>
+      <div class="panel-h">
+        <h2 id="h-review">Review queue</h2>
+        <span class="panel-sub" id="review-sub"></span>
+      </div>
+      <div id="review-list" class="review-list"></div>
+    </section>
+
+    <!-- Ledger -->
+    <section class="panel ledger" aria-labelledby="h-ledger">
+      <div class="panel-h ledger-h">
+        <h2 id="h-ledger">Decision ledger</h2>
+        <span class="panel-sub" id="ledger-sub">Append-only and hash-chained. Click a row for its full check trace.</span>
+        <div class="tools">
+          <div class="seg" id="verdict-filter" role="group" aria-label="Filter by verdict">
+            <button type="button" class="seg-b is-on" data-v="">All</button>
+            <button type="button" class="seg-b" data-v="ALLOW">Allow</button>
+            <button type="button" class="seg-b" data-v="BLOCK">Block</button>
+            <button type="button" class="seg-b" data-v="REVIEW">Review</button>
+          </div>
+          <input type="search" id="quick" class="search" placeholder="Search ledger" aria-label="Search ledger" spellcheck="false" />
+          <button type="button" class="btn btn-ghost" id="btn-csv">Export CSV</button>
+        </div>
+      </div>
+      <div class="ledger-body">
+        <div id="grid" class="grid"></div>
+        <aside class="detail" id="detail" aria-live="polite"></aside>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <span>PayPal sandbox only. No real money moves.</span>
+      <span id="foot-state"></span>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@33.3.2/dist/ag-grid-community.min.js"
+          integrity="sha384-e5dtcdU6W+6eGbKHSLjkBTaMThWX2E+jXV4KTlX+WmtwwBvVFBl8ohNejNV+PAHr"
+          crossorigin="anonymous"></script>
+  <script src="app.js"></script>
+</body>
+</html>
