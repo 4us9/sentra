@@ -47,6 +47,15 @@ export const SCENARIOS = [
     ],
   },
   {
+    id: 'race', category: 'attack', expect: 'MIXED',
+    title: 'Double-spend race',
+    blurb: 'Three $60 payments fired in the same instant, hoping they all read the same stale budget. One goes through; the others see what it has already reserved.',
+    concurrent: true,
+    steps: Array.from({ length: 3 }, (_, i) => (
+      { amount: 60, recipient: 'merchant_greengrocer', purpose: `groceries order ${i + 1}` }
+    )),
+  },
+  {
     id: 'lookalike', category: 'attack', expect: 'BLOCK',
     title: 'Look-alike merchant',
     blurb: 'merchant_freshmаrt spelled with a Cyrillic "а". Reads the same to a human, pays someone else.',
@@ -61,15 +70,6 @@ export const SCENARIOS = [
     steps: [
       { amount: -150, recipient: 'merchant_freshmart', purpose: 'groceries refund adjustment' },
     ],
-  },
-  {
-    id: 'race', category: 'attack', expect: 'MIXED',
-    title: 'Double-spend race',
-    blurb: 'Six $60 payments fired in the same instant, hoping they all read the budget before any of them is debited.',
-    concurrent: true,
-    steps: Array.from({ length: 6 }, (_, i) => (
-      { amount: 60, recipient: 'merchant_greengrocer', purpose: `groceries order ${i + 1}` }
-    )),
   },
   {
     id: 'burst', category: 'attack', expect: 'MIXED',
