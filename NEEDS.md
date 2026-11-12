@@ -2,7 +2,7 @@
 
 In priority order for the 2:00pm Regina deadline. Everything else is in STATUS.md.
 
-## 1. Deploy on Render (needed for the hosted demo and the Render prize)
+## 1. Deploy on Render: DONE (https://sentra-x8zr.onrender.com)
 1. render.com → New → **Blueprint** → the `sentra` repo. It reads `render.yaml`.
 2. When prompted, enter `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` (the same
    sandbox values as your `.env`). Optional: `ANTHROPIC_API_KEY`, `STRIPE_SECRET_KEY`.

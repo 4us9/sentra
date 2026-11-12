@@ -116,7 +116,7 @@ approvals and webhooks; more rails.
 
 ### Try it
 
-- Live: `<HOSTED_URL>`
+- Live: https://sentra-x8zr.onrender.com
 - Video: `<YOUTUBE_URL>`
 - Code: https://github.com/4us9/sentra (MIT). `npm install && npm start`, then
   `npm run demo`. Runs fully offline in simulated mode with no credentials.

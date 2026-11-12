@@ -43,11 +43,16 @@ Known-good tags: `submission-candidate-v1`, `-v2`, `-v3` (see the end).
 - `examples/quickstart.js` and `examples/protect-existing-tool.js` run.
 
 ## Done, not verified
-- **Stripe against a real test key.** `src/processors/stripe.js` (PaymentIntents,
-  confirmed against Stripe's test payment method, `Idempotency-Key`, read-back
-  check, live keys refused) has only run in simulated mode. Needs a `sk_test_`
-  key: NEEDS.md step 5.
-- **Render deploy.** `render.yaml` is written and unexercised. NEEDS.md step 1.
+- **Hosted on Render** at https://sentra-x8zr.onrender.com (PayPal sandbox, Stripe test mode, Claude
+  configured). `npm run demo` against it on Nov 12 ~11:20 Regina: PayPal sandbox
+  orders and real Stripe test PaymentIntents (`pi_...`) for every ALLOW, verdicts
+  identical on both rails, ledger chain intact.
+- **Unverified on the hosted run:** the off-mandate REVIEW came from the
+  vocabulary fallback, not Claude, although the intent chip reads Claude. Either
+  the hourly cap or a model error; the verdict is still REVIEW (default deny).
+  Check the Render logs / key balance before recording.
+- **Hosted operator API is open** (`SENTRA_ADMIN_TOKEN` unset) so judges can use
+  the dashboard. Spend is bounded by `SENTRA_LLM_HOURLY_CAP`.
 - **Some dashboard paths:** see the Dashboard section.
 
 ## Dashboard (`public/`, AG Grid Community 33.3.2 with SRI)
@@ -74,7 +79,7 @@ switch / reinstate, ledger with processor filter, check trace and two CSV export
   grocery-specific, so on the saas-procurement policy use the craft form.
 
 ## Needs the human (NEEDS.md)
-1. Render deploy and the hosted URL in README / DEVPOST.md.
+1. ~~Render deploy~~ done.
 2. Demo video (VIDEO.md).
 3. Devpost submission (DEVPOST.md is paste-ready).
 4. Fact-check the two `[verify]` claims in DEVPOST.md.

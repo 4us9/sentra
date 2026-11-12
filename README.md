@@ -6,6 +6,8 @@
 is inspected before it executes. Good payments go through to PayPal or Stripe.
 Hijacked ones never leave.
 
+**Live demo:** https://sentra-x8zr.onrender.com (PayPal sandbox and Stripe test mode; the free tier sleeps, so the first load can take a minute).
+
 ```
                         ┌───────────────── Sentra ─────────────────┐
  AI agent ──pay()─────▶ │ 0 schema → 1 rules → 2 anomaly → 3 intent │──ALLOW──▶ PayPal (Orders v2)
@@ -144,7 +146,7 @@ Sentra refuses to start against a non-sandbox PayPal URL or a live Stripe key.
 
 ## For judges
 
-1. Open the dashboard (hosted URL: _added after deploy_; or run locally as above).
+1. Open the dashboard (hosted: https://sentra-x8zr.onrender.com ; or run locally as above).
 2. Choose a policy and a processor and click **Issue mandate**. That makes you
    the human: a $300 grocery budget, $75 per payment, two allowed merchants. Your
    browser is handed the agent's token.
