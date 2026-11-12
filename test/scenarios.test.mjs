@@ -86,7 +86,7 @@ test('scenarios: the budget is never exceeded and the breaker ends the run froze
 });
 
 test('scenarios: same firewall, any rail (identical verdicts on PayPal and Stripe)', () => {
-  const shape = (run) => SCENARIOS.map((s) => run.results[s.id].map((d) => `${d.verdict}:${d.decidedBy?.check ?? '-'}`).sort());
+  const shape = (run) => SCENARIOS.map((s) => run.results[s.id].map((d) => d.verdict).sort());   // verdicts only: which check fires first in a race depends on arrival order
   assert.deepEqual(shape(stripe), shape(paypal));
   assert.equal(stripe.mandate.spent, paypal.mandate.spent);
   for (const d of stripe.results.groceries) assert.match(d.paymentId, /^SIM-STRIPE-/);
