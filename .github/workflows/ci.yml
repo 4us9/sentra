@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      # Offline by construction: simulated processors, no model, never reads .env.
+      - name: Unit, guard and HTTP tests
+        run: npm test
+      - name: Adversarial suite (nothing in the corpus may ever be ALLOWED)
+        run: npm run test:adversarial
+      - name: Type check (JSDoc + @ts-check, no build step)
+        run: npm run typecheck
+
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No secrets or runtime data in the repository
+        run: |
+          set -e
+          if git ls-files | grep -E '(^|/)\.env$|\.key$|^data/db\.json$'; then
+            echo "secret or runtime data file is tracked"; exit 1
+          fi
+          if git grep -nE 'sk_live_|sk-ant-[A-Za-z0-9]|A21AA[A-Za-z0-9_-]{20,}' -- . ':!.github' ':!src/log.js' ':!test'; then
+            echo "credential-shaped string found"; exit 1
+          fi
+          echo "clean"
