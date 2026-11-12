@@ -10,7 +10,10 @@ process.env.SENTRA_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'sentra-adv-
 process.env.SENTRA_SECRET = 'test-secret';
 process.env.PAYPAL_MODE = 'simulate';
 process.env.SENTRA_PROCESSOR_MODE = 'simulate';
+process.env.SENTRA_NO_DOTENV = '1';        // never read the developer's .env
 delete process.env.ANTHROPIC_API_KEY;
+delete process.env.PAYPAL_CLIENT_ID;
+delete process.env.PAYPAL_CLIENT_SECRET;
 
 const { ATTACKS, LEGITIMATE } = await import('./corpus/attacks.mjs');
 const { createMandate } = await import('../src/mandate.js');

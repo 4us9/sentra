@@ -10,8 +10,12 @@ import path from 'node:path';
 
 process.env.SENTRA_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'sentra-test-'));
 process.env.SENTRA_SECRET = 'test-secret';
-process.env.PAYPAL_MODE = 'simulate';
+process.env.SENTRA_PROCESSOR_MODE = 'simulate';
+delete process.env.STRIPE_SECRET_KEY;
+process.env.SENTRA_NO_DOTENV = '1';        // never read the developer's .env
 delete process.env.ANTHROPIC_API_KEY;
+delete process.env.PAYPAL_CLIENT_ID;
+delete process.env.PAYPAL_CLIENT_SECRET;
 
 const { decide } = await import('../src/policy/engine.js');
 const { validateRequest } = await import('../src/policy/validate.js');
@@ -19,7 +23,9 @@ const { createMandate, sealValid } = await import('../src/mandate.js');
 const { signatureScan, parseVerdict, assessIntent } = await import('../src/intent.js');
 const { chainEntry, verifyChain, GENESIS } = await import('../src/audit.js');
 const store = await import('../src/store.js');
-const { guardPayment, resolveReview, setFrozen, auditStatus } = await import('../src/guard.js');
+const { guardPayment, resolveReview, setFrozen, auditStatus, reservedTotal } = await import('../src/guard.js');
+const { minorUnits } = await import('../src/processors/stripe.js');
+const { redactText, scrubSecrets } = await import('../src/log.js');
 
 const now = Date.parse('2026-11-12T12:00:00Z');
 const low = async () => ({ risk: 'low', reason: 'stub', source: 'stub' });
@@ -310,4 +316,139 @@ test('guard: tampering with the stored mandate or the ledger is caught', async (
   const d = await pay(token, { ...ok, amount: 5000 });
   assert.equal(d.verdict, 'BLOCK');
   assert.ok(d.reasons.some((r) => r.check === 'mandate_integrity' && r.result === 'FAIL'));
+});
+
+// ---------- Reservation: reserve -> execute -> commit / release ----------
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function fakeProcessor({ delay = 20, fail = false } = {}) {
+  const p = {
+    name: 'fake', label: 'Fake', mode: () => 'simulated', calls: [], active: 0, peak: 0,
+    async createPayment(req) {
+      p.calls.push(req);
+      p.active++; p.peak = Math.max(p.peak, p.active);
+      await sleep(delay);
+      p.active--;
+      if (fail) throw new Error('processor down (Bearer abcdefghijklmnop sk_test_abcdefghijkl)');
+      return { processor: 'fake', id: 'FAKE-' + p.calls.length, status: 'OK', mode: 'simulated', verified: true };
+    },
+  };
+  return p;
+}
+const wide = { velocityLimit: { count: 1000, windowSec: 60 }, breaker: { blocks: 1000, windowSec: 60 } };
+
+test('reservation: processor calls overlap (lock not held during execution) yet budget is never oversold', async () => {
+  store.reset();
+  const { id, token } = issue({ budgetTotal: 100, perTxCap: 40, ...wide });
+  const proc = fakeProcessor({ delay: 30 });
+  const out = await Promise.all(Array.from({ length: 5 }, () =>
+    guardPayment(token, { ...ok, amount: 40 }, { semantic: low, processor: proc }).then((r) => r.body)));
+  assert.equal(out.filter((d) => d.verdict === 'ALLOW').length, 2);
+  assert.equal(proc.calls.length, 2, 'only approved payments reach the processor');
+  assert.equal(proc.peak, 2, 'the two approved payments executed concurrently');
+  assert.equal(store.getMandate(id).spent, 80);
+  const blocked = out.find((d) => d.verdict === 'BLOCK');
+  assert.match(blocked.reasons.find((r) => r.check === 'budget').detail, /reserved/);
+});
+test('reservation: a failed processor call releases the reservation and debits nothing', async () => {
+  store.reset();
+  const { id, token } = issue({ budgetTotal: 50, perTxCap: 40, ...wide });
+  const d = (await guardPayment(token, { ...ok, amount: 40 }, { semantic: low, processor: fakeProcessor({ fail: true }) })).body;
+  assert.equal(d.verdict, 'ERROR');
+  assert.equal(d.paymentId, null);
+  assert.equal(d.decidedBy.layer, 'processor');
+  assert.equal(store.getMandate(id).spent, 0);
+  assert.equal(reservedTotal(id), 0);
+  const detail = d.reasons.find((r) => r.layer === 'processor').detail;
+  assert.ok(!/abcdefghijklmnop|sk_test_abcdefghijkl/.test(detail), 'credential-shaped text leaked into the ledger');
+  const again = (await guardPayment(token, { ...ok, amount: 40 }, { semantic: low, processor: fakeProcessor() })).body;
+  assert.equal(again.verdict, 'ALLOW');                 // the budget is available again
+});
+test('reservation: a slow reviewer model does not let a second payment through on stale budget', async () => {
+  store.reset();
+  const { id, token } = issue({ budgetTotal: 60, perTxCap: 40, ...wide });
+  const slow = async () => { await sleep(40); return { risk: 'low', reason: '', source: 'stub' }; };
+  const out = await Promise.all([1, 2].map(() =>
+    guardPayment(token, { ...ok, amount: 40 }, { semantic: slow, processor: fakeProcessor() }).then((r) => r.body)));
+  assert.deepEqual(out.map((d) => d.verdict).sort(), ['ALLOW', 'BLOCK']);
+  assert.equal(store.getMandate(id).spent, 40);
+});
+test('reservation: BLOCK and REVIEW release what they reserved', async () => {
+  store.reset();
+  const { id, token } = issue({ budgetTotal: 60, perTxCap: 40, ...wide });
+  await guardPayment(token, { ...ok, amount: 40 }, { semantic: high, processor: fakeProcessor() });
+  await guardPayment(token, { ...ok, amount: 40 }, { semantic: med, processor: fakeProcessor() });
+  assert.equal(reservedTotal(id), 0);
+  assert.equal((await guardPayment(token, { ...ok, amount: 40 }, { semantic: low, processor: fakeProcessor() })).body.verdict, 'ALLOW');
+});
+test('reservation: kill switch pulled while a payment is in flight stops it before the processor', async () => {
+  store.reset();
+  const { id, token } = issue({ ...wide });
+  const proc = fakeProcessor();
+  const slow = async () => { await sleep(40); return { risk: 'low', reason: '', source: 'stub' }; };
+  const inFlight = guardPayment(token, ok, { semantic: slow, processor: proc });
+  await sleep(10);
+  await setFrozen(id, true);
+  const d = (await inFlight).body;
+  assert.equal(d.verdict, 'BLOCK');
+  assert.equal(proc.calls.length, 0);
+  assert.equal(store.getMandate(id).spent, 0);
+});
+test('idempotency: the same key sent concurrently is executed once', async () => {
+  store.reset();
+  const { id, token } = issue({ ...wide });
+  const proc = fakeProcessor({ delay: 30 });
+  const out = await Promise.all([1, 2, 3].map(() =>
+    guardPayment(token, { ...ok, idempotencyKey: 'order-42' }, { semantic: low, processor: proc }).then((r) => r.body)));
+  assert.equal(proc.calls.length, 1);
+  assert.equal(new Set(out.map((d) => d.id)).size, 1);
+  assert.equal(store.getMandate(id).spent, 40);
+  assert.equal(proc.calls[0].idempotencyKey, out[0].id, 'the decision id is the processor idempotency key');
+});
+test('review: two concurrent approvals of one held payment execute it once', async () => {
+  store.reset();
+  const { id, token } = issue({ ...wide });
+  const held = await pay(token, { ...ok, purpose: 'wireless headphones' }, none);
+  const proc = fakeProcessor({ delay: 30 });
+  const out = await Promise.all([1, 2].map(() => resolveReview(held.id, 'approve', { processor: proc })));
+  assert.deepEqual(out.map((r) => r.status).sort(), [200, 409]);
+  assert.equal(proc.calls.length, 1);
+  assert.equal(store.getMandate(id).spent, 40);
+});
+
+// ---------- Processors ----------
+test('processors: the mandate picks the rail, the choice is sealed, unknown rails are refused', async () => {
+  store.reset();
+  assert.throws(() => createMandate({ processor: 'venmo' }));
+  for (const name of ['paypal', 'stripe']) {
+    const { token } = issue({ processor: name });
+    const d = await pay(token, ok);
+    assert.equal(d.verdict, 'ALLOW');
+    assert.equal(d.processor, name);
+    assert.equal(d.payment.processor, name);
+    assert.equal(d.payment.mode, 'simulated');
+    assert.match(d.paymentId, new RegExp(`^SIM-${name.toUpperCase()}-`));
+  }
+  const m = mandate({ processor: 'paypal' }, { processor: 'stripe' });      // rerouted after issue
+  assert.equal(sealValid(m), false);
+});
+test('processors: same verdicts on every rail (the engine never sees the processor)', async () => {
+  const attacks = [
+    { ...ok, amount: 5000, recipient: 'wallet_unknown_0xABCD' },
+    { ...ok, purpose: 'gift card' },
+    { ...ok, amount: -150 },
+    ok,
+  ];
+  const run = async (processor) => Promise.all(attacks.map((a) => verdict(mandate({ processor }), a, [], none)));
+  assert.deepEqual(await run('paypal'), await run('stripe'));
+});
+test('processors: Stripe minor units', () => {
+  assert.equal(minorUnits(40.5, 'USD'), 4050);
+  assert.equal(minorUnits(0.29, 'USD'), 29);
+  assert.equal(minorUnits(500, 'JPY'), 500);
+  assert.throws(() => minorUnits(500.5, 'JPY'));
+});
+test('logging: purpose text and credential-shaped strings never reach the log', () => {
+  assert.deepEqual(Object.keys(redactText('buy a gift card for alice@example.com')).sort(), ['len', 'sha256_8']);
+  const s = scrubSecrets('token sat_AbCdEfGhIjKlMnOp, Bearer abc.def.ghijklmn, sk_test_1234567890abcd, sk-ant-api03-zzzzzzzzzz');
+  assert.ok(!/AbCdEf|abc\.def|1234567890|zzzzzz/.test(s), s);
 });
