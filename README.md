@@ -241,7 +241,6 @@ short-lived read-only client and never takes the ledger writer lock.
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md): assets, attacker, trust boundaries, thirteen threats each tied to code and tests, and what is out of scope.
 - [docs/ADDING_A_PROCESSOR.md](docs/ADDING_A_PROCESSOR.md): the adapter contract for a new rail.
 - [examples/](examples/): SDK, proxy and MCP integration.
-- [STATUS.md](STATUS.md): exactly what has been verified live, by tests, by hand, and what has not.
 
 ## Deploy (Render)
 
