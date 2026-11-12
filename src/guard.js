@@ -155,14 +155,15 @@ async function executeAndCommit(decision, { processor, now }) {
 /**
  * @param {string} token   the agent's mandate-scoped bearer token
  * @param {unknown} body   the untrusted payment request
- * @param {{ now?: () => number, semantic?: Function, processor?: import('./processors/index.js').PaymentProcessor }} [opts]
+ * @param {{ now?: () => number, semantic?: import('./intent.js').SemanticFn, processor?: import('./processors/index.js').PaymentProcessor }} [opts]
  * @returns {Promise<{ status: number, body: any }>}
  */
 export async function guardPayment(token, body, { now = Date.now, semantic, processor } = {}) {
   const found = mandateForToken(token);
   if (!found) return { status: 401, body: { error: 'missing or invalid agent token' } };
   const mandateId = found.id;
-  const key = typeof body?.idempotencyKey === 'string' ? body.idempotencyKey : null;
+  const raw = /** @type {any} */ (body);
+  const key = typeof raw?.idempotencyKey === 'string' ? raw.idempotencyKey : null;
   const pendingKey = key ? `${mandateId}:${key}` : null;
 
   // ---- step 1 (locked): idempotency, screen, reserve ----
@@ -231,6 +232,12 @@ const pick = (o) => ({ verdict: o.verdict, reasons: o.reasons, riskScore: o.risk
 
 // Human-in-the-loop: approve or deny a held payment. The original REVIEW entry is
 // never edited (the ledger is append-only); the outcome is a new entry that points at it.
+/**
+ * @param {string} decisionId
+ * @param {string} action  'approve' | 'deny'
+ * @param {{ now?: () => number, operator?: string, processor?: import('./processors/index.js').PaymentProcessor }} [opts]
+ * @returns {Promise<{ status: number, body: any }>}
+ */
 export async function resolveReview(decisionId, action, { now = Date.now, operator = 'operator', processor } = {}) {
   const held = store.listDecisions().find((d) => d.id === decisionId);
   if (!held || held.verdict !== 'REVIEW') return { status: 404, body: { error: 'no such held payment' } };

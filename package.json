@@ -21,10 +21,16 @@
     "mcp": "node mcp/sentra-mcp.js",
     "verify-ledger": "node scripts/verify-ledger.js",
     "test": "node --test test/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json",
     "test:adversarial": "node --test test/adversarial.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
   }
 }

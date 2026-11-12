@@ -125,7 +125,16 @@ export function parseVerdict(text, mandate) {
   }
 }
 
-// semantic: async ({mandate, request}) => {risk, reason, source} | null
+/**
+ * A semantic reviewer: Claude in production, a stub in tests. Returns null when it
+ * has no opinion (not configured, over the spend cap, or failed).
+ * @typedef {(args: { mandate: any, request: any }) => Promise<{ risk: string, reason: string, source: string, category?: string } | null>} SemanticFn
+ */
+
+/**
+ * @param {{ mandate: any, request: any, semantic?: SemanticFn, skipSemantic?: boolean }} args
+ * @returns {Promise<{ risk: 'low'|'med'|'high', reason: string, source: string }>}
+ */
 export async function assessIntent({ mandate, request, semantic = llmSemantic, skipSemantic = false }) {
   const sig = signatureScan(request);
   if (sig.risk === 'high') return { risk: 'high', reason: sig.reason, source: 'signature' };

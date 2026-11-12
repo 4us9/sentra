@@ -118,5 +118,5 @@ rl.on('line', (line) => {
   if (!line.trim()) return;
   let msg;
   try { msg = JSON.parse(line); } catch { return reply({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'parse error' } }); }
-  pending = pending.then(() => handle(msg));
+  pending = pending.then(async () => { await handle(msg); });
 });

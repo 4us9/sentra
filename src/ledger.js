@@ -44,6 +44,7 @@ export function queryLedger(decisions, query = {}) {
   return { total: rows.length, offset, limit, entries: rows.slice(offset, offset + limit) };
 }
 
+/** @type {Array<[string, (d: any) => any]>} */
 const COLUMNS = [
   ['seq', (d) => d.seq], ['time', (d) => d.createdAt], ['decision_id', (d) => d.id], ['kind', (d) => d.kind],
   ['mandate', (d) => d.mandateId], ['processor', (d) => d.processor ?? ''], ['verdict', (d) => d.verdict],

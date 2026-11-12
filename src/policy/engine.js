@@ -75,13 +75,20 @@ export function conclude(screening, intent) {
   return { verdict, request: screening.request, reasons, riskScore, intentSource: intent.source, decidedBy: decidedBy(reasons) };
 }
 
-/** Layer 3 for a screening. The model is skipped when layers 0-2 already blocked. */
+/**
+ * Layer 3 for a screening. The model is skipped when layers 0-2 already blocked.
+ * @param {any} mandate @param {Screening} screening @param {import('../intent.js').SemanticFn} [semantic]
+ */
 export function intentFor(mandate, screening, semantic = llmSemantic) {
   if (screening.malformed) return Promise.resolve({ risk: 'low', reason: '', source: 'skipped' });
   return assessIntent({ mandate, request: screening.request, semantic, skipSemantic: !screening.passed });
 }
 
-/** All four layers in one call (used by tests and by anything that holds no shared state). */
+/**
+ * All four layers in one call (used by tests and by anything that holds no shared state).
+ * @param {any} mandate @param {unknown} rawRequest @param {any[]} history @param {number} [now] @param {import('../intent.js').SemanticFn} [semantic]
+ * @returns {Promise<Outcome>}
+ */
 export async function decide(mandate, rawRequest, history, now = Date.now(), semantic = llmSemantic) {
   const s = screen(mandate, rawRequest, history, now);
   return conclude(s, await intentFor(mandate, s, semantic));
