@@ -1,0 +1,15 @@
+{
+  "$schema": "./policy.schema.json",
+  "version": 1,
+  "name": "saas-procurement",
+  "description": "Renew the team's existing software subscriptions. Known vendors only. No new vendors, no hardware, no gift cards.",
+  "currency": "USD",
+  "budgetTotal": 2000,
+  "perTxCap": 600,
+  "allowedRecipients": ["vendor_cloudhost", "vendor_designsuite", "vendor_ci_minutes"],
+  "scope": ["subscription", "renewal", "licence", "license", "seat", "plan", "hosting", "saas", "software"],
+  "outOfScope": "block",
+  "velocityLimit": { "count": 4, "windowSec": 3600 },
+  "breaker": { "blocks": 3, "windowSec": 600 },
+  "ttlHours": 72
+}

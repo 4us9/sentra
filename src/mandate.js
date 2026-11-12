@@ -17,7 +17,7 @@ export const DEFAULT_SCOPE = [
 ];
 
 const SEALED_FIELDS = [
-  'id', 'user', 'description', 'scope', 'processor', 'currency', 'budgetTotal', 'perTxCap',
+  'id', 'user', 'policy', 'description', 'scope', 'processor', 'currency', 'budgetTotal', 'perTxCap',
   'allowedRecipients', 'velocityLimit', 'breaker', 'outOfScope', 'expiresAt', 'tokenHash', 'createdAt',
 ];
 
@@ -57,6 +57,8 @@ export function createMandate(partial = {}, now = Date.now()) {
   const mandate = {
     id: partial.id || 'mnd_' + crypto.randomBytes(6).toString('hex'),
     user: String(partial.user || 'demo-user').slice(0, 80),
+    // Name of the policy file this mandate was issued from, if any.
+    policy: partial.policy ? String(partial.policy).slice(0, 64) : null,
     description: String(partial.description
       || 'Grocery run. Buy groceries from known merchants only. No transfers, no gift cards.').slice(0, 400),
     scope: Array.isArray(partial.scope) && partial.scope.length ? partial.scope.map(String) : DEFAULT_SCOPE,

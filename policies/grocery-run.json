@@ -1,0 +1,15 @@
+{
+  "$schema": "./policy.schema.json",
+  "version": 1,
+  "name": "grocery-run",
+  "description": "Grocery run. Buy groceries from known merchants only. No transfers, no gift cards.",
+  "currency": "USD",
+  "budgetTotal": 300,
+  "perTxCap": 75,
+  "allowedRecipients": ["merchant_freshmart", "merchant_greengrocer"],
+  "scope": ["grocer", "food", "produce", "vegetable", "fruit", "meat", "dairy", "milk", "egg", "bread", "bakery", "pantry", "snack", "drink", "beverage"],
+  "outOfScope": "review",
+  "velocityLimit": { "count": 6, "windowSec": 60 },
+  "breaker": { "blocks": 5, "windowSec": 120 },
+  "ttlHours": 24
+}

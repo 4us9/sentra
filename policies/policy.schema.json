@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/4us9/sentra/policies/policy.schema.json",
+  "title": "Sentra policy",
+  "description": "A reusable template for agent payment mandates. A mandate is one issued, sealed instance of a policy, bound to one agent token.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "description", "budgetTotal", "perTxCap", "allowedRecipients"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1, "description": "Policy format version." },
+    "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
+    "description": { "type": "string", "minLength": 1, "maxLength": 400, "description": "What the human is authorising, in plain words. Shown to the intent reviewer." },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$", "default": "USD" },
+    "processor": { "enum": ["paypal", "stripe"], "description": "Rail that executes allowed payments. Defaults to the server's SENTRA_PROCESSOR." },
+    "budgetTotal": { "type": "number", "exclusiveMinimum": 0 },
+    "perTxCap": { "type": "number", "exclusiveMinimum": 0 },
+    "allowedRecipients": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "type": "string", "pattern": "^[A-Za-z0-9_.@:+-]{1,128}$" } },
+    "scope": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 2, "maxLength": 40 }, "description": "Vocabulary used by the no-model fallback to recognise in-scope purposes." },
+    "outOfScope": { "enum": ["review", "block"], "default": "review", "description": "What an ordinary but off-purpose payment becomes." },
+    "velocityLimit": {
+      "type": "object", "additionalProperties": false, "required": ["count", "windowSec"],
+      "properties": { "count": { "type": "integer", "minimum": 1 }, "windowSec": { "type": "integer", "minimum": 1 } }
+    },
+    "breaker": {
+      "type": "object", "additionalProperties": false, "required": ["blocks", "windowSec"],
+      "properties": { "blocks": { "type": "integer", "minimum": 1 }, "windowSec": { "type": "integer", "minimum": 1 } },
+      "description": "This many blocked payments inside the window freezes the mandate."
+    },
+    "ttlHours": { "type": "number", "exclusiveMinimum": 0, "maximum": 8760, "default": 24, "description": "How long an issued mandate stays valid." }
+  }
+}
