@@ -1,0 +1,26 @@
+# Render blueprint: New -> Blueprint -> pick this repo. Free web service.
+# Secrets are entered in the Render dashboard (sync: false), never committed.
+services:
+  - type: web
+    name: sentra
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: PAYPAL_BASE
+        value: https://api-m.sandbox.paypal.com
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: SENTRA_SECRET
+        generateValue: true
+      # Optional: turns on the Claude intent check. Leave unset to use the fallback.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SENTRA_LLM_HOURLY_CAP
+        value: "60"

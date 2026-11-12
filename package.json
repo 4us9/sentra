@@ -1,0 +1,20 @@
+{
+  "name": "sentra",
+  "version": "0.2.0",
+  "description": "Sentra — a runtime firewall between AI agents and PayPal. Inspects every agent payment before it executes and blocks the malicious ones.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "demo": "node agent/demoAgent.js",
+    "mcp": "node mcp/sentra-mcp.js",
+    "test": "node --test test/sentra.test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "express": "^4.19.2"
+  }
+}
