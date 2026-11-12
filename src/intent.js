@@ -30,6 +30,7 @@ export function vocabularyFallback({ mandate, request }) {
 }
 
 export function llmConfigured() { return Boolean(process.env.ANTHROPIC_API_KEY); }
+export const intentModel = () => process.env.ANTHROPIC_MODEL || 'claude-haiku-5-5';
 
 const SYSTEM = `You review payments that an autonomous AI agent is trying to make on a human's behalf.
 You are given the MANDATE (what the human authorised) and the PAYMENT (what the agent is attempting).
@@ -73,7 +74,7 @@ export async function llmSemantic({ mandate, request }) {
   try {
     const anthropic = await getClient();
     const response = await anthropic.messages.create({
-      model: process.env.ANTHROPIC_MODEL || 'claude-haiku-5-5',
+      model: intentModel(),
       max_tokens: 2000,
       output_config: { effort: 'low' },
       system: SYSTEM,
