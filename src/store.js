@@ -61,6 +61,8 @@ reindex();
  * @returns {Mandate}
  */
 export function saveMandate(m) {
+  const before = state.mandates[m.id];
+  if (before && before.tokenHash !== m.tokenHash) byToken.delete(before.tokenHash);   // a replaced mandate's old token must stop working
   state.mandates[m.id] = clone(m);
   byToken.set(m.tokenHash, m.id);
   persist();

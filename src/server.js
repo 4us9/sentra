@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import * as store from './store.js';
 import { getProcessor, processorStatus } from './processors/index.js';
 import { createMandate, publicMandate } from './mandate.js';
-import { guardPayment, resolveReview, setFrozen, recordIssued, auditStatus, mandateForToken, reservedTotal } from './guard.js';
+import { guardPayment, resolveReview, setFrozen, recordIssued, resetGuardState, auditStatus, mandateForToken, reservedTotal } from './guard.js';
 import { llmConfigured, intentModel } from './intent.js';
 import { loadPolicies, mandateFromPolicy } from './policy/config.js';
 import { queryLedger, toCsv, computeMetrics, toPrometheus } from './ledger.js';
@@ -117,7 +117,13 @@ app.post('/api/mandates', opLimit, operator, async (req, res) => {
     const name = wanted ?? (POLICIES[DEFAULT_POLICY] ? DEFAULT_POLICY : null);
     if (name && !POLICIES[name]) return res.status(400).json({ error: `unknown policy "${String(name).slice(0, 64)}"` });
     const base = name ? mandateFromPolicy(POLICIES[name]) : {};
-    const { mandate, agentToken } = createMandate({ ...base, ...overrides });
+    // Only these may be set per mandate. Everything else comes from the policy file,
+    // and the id is always freshly generated: accepting one would let a caller
+    // replace an existing mandate.
+    const allowed = Object.fromEntries(['processor', 'user'].filter((k) => k in overrides).map((k) => [k, overrides[k]]));
+    const unknown = Object.keys(overrides).filter((k) => !(k in allowed));
+    if (unknown.length) return res.status(400).json({ error: `not settable per mandate: ${unknown.slice(0, 5).join(', ').slice(0, 120)}. Put limits in a policy file.` });
+    const { mandate, agentToken } = createMandate({ ...base, ...allowed });
     store.saveMandate(mandate);
     await recordIssued(mandate);                                  // issuance is on the ledger too
     res.json({ mandate: publicMandate(mandate), agentToken });   // token is shown once
@@ -126,7 +132,7 @@ app.post('/api/mandates', opLimit, operator, async (req, res) => {
 app.post('/api/mandates/:id/freeze', opLimit, operator, (req, res) => setFrozen(/** @type {string} */ (req.params.id), true).then(sendMandate(res), fail(res)));
 app.post('/api/mandates/:id/reinstate', opLimit, operator, (req, res) => setFrozen(/** @type {string} */ (req.params.id), false).then(sendMandate(res), fail(res)));
 app.post('/api/reviews/:id/:action', opLimit, operator, (req, res) => resolveReview(/** @type {string} */ (req.params.id), /** @type {string} */ (req.params.action)).then(send(res), fail(res)));
-app.post('/api/demo/reset', opLimit, operator, (req, res) => { store.reset(); res.json({ ok: true }); });
+app.post('/api/demo/reset', opLimit, operator, (req, res) => { store.reset(); resetGuardState(); res.json({ ok: true }); });
 
 app.use(express.static(path.resolve('public')));
 
