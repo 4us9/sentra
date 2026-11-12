@@ -1,0 +1,21 @@
+{
+  "name": "@sentra/db",
+  "version": "0.4.0",
+  "description": "Sentra persistence: the Store contract, an in-memory/JSON implementation, and a Prisma/Postgres implementation.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "files": ["dist", "prisma"],
+  "scripts": {
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "migrate": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev",
+    "import-json": "node dist/import-json.js"
+  },
+  "dependencies": { "@prisma/client": "^6.1.0", "@sentra/guard": "workspace:*" },
+  "devDependencies": { "@types/node": "^22.10.0", "prisma": "^6.1.0", "typescript": "^5.7.2", "vitest": "^2.1.8" }
+}

@@ -1,0 +1,95 @@
+// Sentra persistence model. Postgres is the durable, append-only record; the
+// service holds the hot view in memory (single writer, see src/postgres.ts).
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String    @id
+  name      String
+  createdAt DateTime  @default(now())
+  mandates  Mandate[]
+  apiKeys   ApiKey[]
+}
+
+model Mandate {
+  id                String     @id
+  tenantId          String     @default("default")
+  tenant            Tenant     @relation(fields: [tenantId], references: [id])
+  user              String
+  policy            String?
+  description       String
+  scope             String[]
+  processor         String
+  currency          String     @default("USD")
+  budgetTotal       Float
+  perTxCap          Float
+  allowedRecipients String[]
+  velocityCount     Int
+  velocityWindowSec Int
+  breakerBlocks     Int
+  breakerWindowSec  Int
+  outOfScope        String     @default("review")
+  expiresAt         DateTime
+  tokenHash         String     @unique
+  seal              String
+  spent             Float      @default(0)
+  status            String     @default("active")
+  frozenReason      String?
+  breakerResetAt    DateTime?
+  createdAt         DateTime
+  updatedAt         DateTime   @updatedAt
+  /// The exact object the seal was computed over, as JSON text. Columns above are
+  /// for querying; this is what is loaded. Text, not jsonb: jsonb via Prisma can
+  /// drop a digit of a float, and one digit breaks a seal.
+  doc               String
+  decisions         Decision[]
+
+  @@index([tenantId])
+}
+
+// Append-only and hash-chained. Rows are only ever inserted.
+model Decision {
+  id           String   @id
+  seq          Int      @unique
+  mandateId    String
+  mandate      Mandate  @relation(fields: [mandateId], references: [id])
+  kind         String
+  processor    String
+  verdict      String
+  request      Json
+  reasons      Json
+  riskScore    Float
+  intentSource String
+  decidedBy    Json?
+  payment      Json?
+  paymentId    String?
+  resolves     String?
+  effects      String[]
+  latencyMs    Float?
+  prevHash     String
+  hash         String   @unique
+  createdAt    DateTime
+  /// The exact chained entry as JSON text (see Mandate.doc for why not jsonb).
+  doc          String
+
+  @@index([mandateId])
+  @@index([verdict])
+  @@index([createdAt])
+}
+
+model ApiKey {
+  id        String    @id
+  tenantId  String    @default("default")
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  keyHash   String    @unique
+  label     String
+  scopes    String[]
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+}
