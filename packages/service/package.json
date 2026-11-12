@@ -1,0 +1,28 @@
+{
+  "name": "@sentra/service",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Sentra's guard API: the chokepoint every agent payment passes through.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "start": "node dist/server.js",
+    "dev": "node --watch dist/server.js",
+    "demo": "node dist/agent/demoAgent.js",
+    "verify-ledger": "node dist/scripts/verify-ledger.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@fastify/cors": "^10.0.1",
+    "@fastify/static": "^8.0.3",
+    "@sentra/db": "workspace:*",
+    "@sentra/guard": "workspace:*",
+    "@sentra/sdk": "workspace:*",
+    "fastify": "^5.2.0"
+  },
+  "devDependencies": { "@types/node": "^22.10.0", "typescript": "^5.7.2", "vitest": "^2.1.8" }
+}
